@@ -19,7 +19,8 @@ async function call(env, method, path, body, extra) {
   if (!res.ok) {
     const msg = await res.text().catch(() => '');
     console.error('supabase', method, path.split('?')[0], res.status, msg.slice(0, 300));
-    throw new HttpError(502, 'db_error');
+    let why = msg; try { why = JSON.parse(msg).message || msg; } catch {}
+    throw new HttpError(502, 'db_error', `${method} ${path.split('?')[0]}: ${String(why).replace(/sb_secret_\S+/g, '[key]').slice(0, 140)}`); // temporary debugging aid
   }
   const text = await res.text();
   return text ? JSON.parse(text) : [];
