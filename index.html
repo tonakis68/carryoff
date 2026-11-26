@@ -2885,8 +2885,9 @@ function travelTable(l){
 function ll(l){return {lat:(43.235-l.y/560*0.05).toFixed(5),lon:(27.868+l.x/800*0.098).toFixed(5)}}
 function gmLink(l){var p=ll(l);return 'https://www.google.com/maps/search/?api=1&query='+p.lat+','+p.lon}
 function dirLink(l,s,mode){var p=ll(l);return 'https://www.google.com/maps/dir/?api=1&origin='+p.lat+','+p.lon+'&destination='+s.lat+','+s.lon+'&travelmode='+mode}
+function toLink(l,mode){var p=ll(l);return 'https://www.google.com/maps/dir/?api=1&destination='+p.lat+','+p.lon+'&travelmode='+mode}
 function mapLinks(l){
-  var h='<div class="glinks">';
+  var h='<div class="glinks"><div><span>'+esc(T("From where you are now"))+'</span><span class="gl">'+[['walking',T("Walk")],['driving',T("Drive")],['transit',T("Transit")]].map(function(m){return '<a href="'+toLink(l,m[0])+'" target="_blank" rel="noopener">'+m[1]+'</a>'}).join('')+'</span></div>';
   STATIONS.forEach(function(s){
     h+='<div><span>'+esc(T(s.name))+'</span><span class="gl">'+[['walking',T("Walk")],['driving',T("Drive")],['transit',T("Transit")]].map(function(m){return '<a href="'+dirLink(l,s,m[0])+'" target="_blank" rel="noopener">'+m[1]+'</a>'}).join('')+'</span></div>';
   });
