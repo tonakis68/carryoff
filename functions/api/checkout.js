@@ -60,13 +60,20 @@ export const onRequestPost = handler(async ({ request, env }) => {
     } catch (e) { if (i === 2) throw e; }
   }
   const k = await bookToken(env, ref);
-  const session = await createCheckout(env, {
-    ref, email, cents: total,
-    name: `Luggage storage in Varna · ${bags} ${bags === 1 ? 'bag' : 'bags'} · ${drop.date}`,
-    description: `CarryOff booking ${ref}`,
-    successUrl: `${origin}/?paid=${ref}&k=${k}`,
-    cancelUrl: `${origin}/?cancelled=${ref}`,
-  });
-  await db.update(env, 'bookings', { ref: eq(ref) }, { stripe_session_id: session.id });
+  let session;
+  try {
+    session = await createCheckout(env, {
+      ref, email, cents: total,
+      name: `Luggage storage in Varna · ${bags} ${bags === 1 ? 'bag' : 'bags'} · ${drop.date}`,
+      description: `CarryOff booking ${ref}`,
+      successUrl: `${origin}/?paid=${ref}&k=${k}`,
+      cancelUrl: `${origin}/?cancelled=${ref}`,
+    });
+    await db.update(env, 'bookings', { ref: eq(ref) }, { stripe_session_id: session.id });
+  } catch (e) {
+    // A payment that could not even start must not count as an open booking.
+    try { await db.update(env, 'bookings', { ref: eq(ref), status: eq('pending_payment') }, { status: 'cancelled' }); } catch {}
+    throw e;
+  }
   return json({ ok: true, url: session.url, ref, long: dur > LONG_AFTER_MIN });
 });
