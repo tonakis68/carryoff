@@ -3095,7 +3095,7 @@ var pa=$('#partnerApp'),custView=$('#custView'),navBtns=document.querySelectorAl
 var pv={tab:'dash',loc:'mosaic',note:null,hl:null,applied:null,flow:null,photoTmp:''};
 function api(path,body){
   return fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)})
-    .then(function(r){return r.json().catch(function(){return {ok:false,error:'server_error'}}).then(function(j){j.status=r.status;return j})})
+    .then(function(r){return r.clone().text().then(function(t){return r.json().catch(function(){return {ok:false,error:'server_error',detail:'HTTP '+r.status+' '+t.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,140)}}).then(function(j){j.status=r.status;return j})})})
     .catch(function(){return {ok:false,error:'network',status:0}});
 }
 function apiMsg(j){return j.error==='not_configured'||j.error==='network'||j.error==='server_error'||j.error==='db_error'?T("Login is not available right now. Please try again later."):(j.error==='locked'?T("Too many wrong codes. Try again in 15 minutes."):T("Wrong email or code."))}
