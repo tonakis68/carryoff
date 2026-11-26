@@ -100,7 +100,7 @@ export function handler(fn) {
     } catch (e) {
       if (e instanceof HttpError) return json({ ok: false, error: e.code, ...(e.detail ? { detail: e.detail } : {}) }, e.status);
       console.error('unhandled', e && e.stack ? e.stack : e);
-      return json({ ok: false, error: 'server_error', detail: String((e && e.message) || e).replace(/(sk|rk|pk|whsec)_\w+|sb_secret_\S+/g, '[key]').slice(0, 160) }, 500); // detail is a temporary debugging aid
+      return json({ ok: false, error: 'server_error' }, 500);
     }
   };
 }
