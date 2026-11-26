@@ -3279,7 +3279,7 @@ function partnerLogin(){
    (step2?("<div>"+"<label class=\"lab2\" for=\"pCode\">"+T("6-digit code")+"</label>"+"<input id=\"pCode\" class=\"big\" inputmode=\"numeric\" autocomplete=\"one-time-code\" maxlength=\"6\" placeholder=\""+"123456"+"\">"+"</div>")+
      (pv.lgErr?("<p class=\"note\" role=\"alert\" style=\"margin:0;color:var(--bad,#b3261e)\">"+esc(pv.lgErr===true?T("Wrong email or code."):pv.lgErr)+"</p>"):'')+
      ("<button type=\"button\" class=\"btn\" data-pverify=\"1\">"+T("Log in")+"</button>"+"<button type=\"button\" class=\"btn sec2\" data-pback=\"1\">"+T("Use a different email")+"</button>")
-    :("<div>"+"<label class=\"lab2\" for=\"pEmail\">"+T("Email")+"</label>"+"<input id=\"pEmail\" class=\"big\" type=\"email\" autocomplete=\"username\" value=\"")+esc(pv.lgEmail||'')+("\">"+"</div>"+"<button type=\"button\" class=\"btn\" data-psend=\"1\">"+T("Send code")+"</button>"))+
+    :("<div>"+"<label class=\"lab2\" for=\"pEmail\">"+T("Email")+"</label>"+"<input id=\"pEmail\" class=\"big\" type=\"email\" autocomplete=\"username\" value=\"")+esc(pv.lgEmail||'')+("\">"+"</div>"+(pv.lgErr?("<p class=\"note\" role=\"alert\" style=\"margin:0;color:var(--bad,#b3261e)\">"+esc(pv.lgErr===true?T("Wrong email or code."):pv.lgErr)+"</p>"):'')+"<button type=\"button\" class=\"btn\" data-psend=\"1\">"+T("Send code")+"</button>"))+
    (pv.lgInfo?("<p class=\"note\" role=\"status\" style=\"margin:0\">"+esc(pv.lgInfo)+"</p>"):'')+("</div>"+"</div>");
 }
 function renderPartner(){
