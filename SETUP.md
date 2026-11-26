@@ -44,3 +44,13 @@ Open the preview address of the `stage-1` branch (Cloudflare → carryoff → De
 
 ## Tests
 `node tests/run.mjs` runs 24 checks of the server code against fakes (no keys needed).
+
+## Stage 2: payments (Stripe test mode first)
+
+1. Supabase: SQL Editor, paste `supabase/stage2.sql`, Run (adds map position and address to partners, adds the 4 missing sample places).
+2. Stripe (the CarryOff account, TEST mode): Developers -> API keys -> copy the Secret key (`sk_test_...`).
+3. Stripe: Developers -> Webhooks -> Add endpoint. URL `https://carryoff.eu/api/stripe-webhook`. Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.expired`. Copy its Signing secret (`whsec_...`).
+4. Cloudflare Pages -> carryoff -> Settings -> Variables and secrets (Production): add `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, both type **Secret**. Retry the deployment.
+5. Check `https://carryoff.eu/api/health` shows `"payments": true`.
+6. Test card: 4242 4242 4242 4242, any future date, any CVC.
+Going live later: swap in the live `sk_live_...` key and a live-mode webhook secret. Nothing else changes.

@@ -2948,8 +2948,7 @@ function bookView(){
     ("<div>"+"<label for=\"fe\">"+T("Email")+"</label>"+"<input type=\"email\" id=\"fe\" autocomplete=\"email\" required>"+"<div class=\"ferr\" id=\"feE\">"+"</div>"+"</div>")+
     phoneField('fp',T("Phone"),null,true)+
     bannedHTML(true)+("<div>"+"<label class=\"agree\">"+"<input type=\"checkbox\" id=\"bnOk\">"+T("I confirm my bags contain none of the items listed above.")+"</label>"+"<div class=\"ferr\" id=\"bnE\">"+"</div>"+"</div>")+
-    ("<div class=\"pay\" role=\"radiogroup\" aria-label=\""+T("Payment method")+"\">"+"<label>"+"<input type=\"radio\" name=\"pm\" value=\"Card\" checked>"+T("Card")+"</label>"+"<label>"+"<input type=\"radio\" name=\"pm\" value=\"Apple Pay\">"+T("Apple Pay")+"</label>"+"<label>"+"<input type=\"radio\" name=\"pm\" value=\"Google Pay\">"+T("Google Pay")+"</label>"+"</div>")+
-    ("<div class=\"banner\">"+T("Demo only. No card details are asked for and nothing is charged. A real checkout (for example Stripe) plugs in here.")+"</div>")+
+    '<p class="note" style="margin:0">'+T("You pay securely on Stripe’s page with a card, Apple Pay or Google Pay. CarryOff never sees your card details.")+'</p><div class="ferr" id="payE" role="alert"></div>'+
     '<button type="submit" class="btn" id="payBtn">'+tp('Pay {0}',fmt.format(pr.total))+'</button>'+
    '</form></div>';
 }
@@ -2964,7 +2963,7 @@ function doneView(){
    ("<div class=\"sec\">"+"<h3>"+T("Exact location and directions")+"</h3>"+"<div class=\"pillrow\">"+"<a class=\"gl-open\" href=\"")+gmLink(l)+'" target="_blank" rel="noopener">'+tp('Open {0} in Google Maps',esc(l.name))+'</a></div>'+mapLinks(l)+'</div>'+
    '<p class="note" style="margin:0">'+tp('<strong>Collect your bags on {0} during opening hours ({1}). Last pick-up: {2}.</strong> Bags can’t be collected when the place is closed.',dLab(b.pDate),esc(todayHours(l,b.pDate)),lastPickup(l,b.pDate))+'</p>'+
    ("<p class=\"note\" style=\"margin:0\">"+"<strong>"+T("Bags can’t be opened or accessed while stored.")+"</strong>"+" "+T("Keep your passport, keys, phone, cash, medication and electronics with you, and take them out before drop-off. The place may refuse bags that contain prohibited items.")+"</p>")+
-   '<p class="note" style="margin:0">'+tp('Demo booking for {0}. No email was sent and nothing was charged.',esc(b.name))+'</p>'+
+   '<p class="note" style="margin:0">'+tp('Booking for {0}. A confirmation email with this code is on its way to you.',esc(b.name))+'</p>'+
    ("<button type=\"button\" class=\"btn\" data-act=\"mine\">"+T("See my booking status")+"</button>")+
    ("<button type=\"button\" class=\"btn sec2\" data-act=\"again\">"+T("Find another storage point")+"</button>"+"</div>");
 }
@@ -3000,7 +2999,7 @@ function phoneField(id,label,cls,err){
 function phoneOk(id){var d=$('#'+id).value.replace(/\D/g,'').replace(/^0+/,'');return d.length>=6&&d.length<=12&&/^[\d\s()\-.]+$/.test($('#'+id).value.trim())}
 function phoneVal(id){var d=$('#'+id).value.replace(/\D/g,'').replace(/^0+/,'');return '+'+$('#'+id+'c').value+' '+d}
 function qrTok(ref){var h=2166136261;for(var i=0;i<ref.length;i++){h^=ref.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)+(Math.imul(h,31)>>>0).toString(36)}
-function qrLink(ref){return 'https://carryoff.example/p/'+ref+'?k='+qrTok(ref)}
+function qrLink(ref){return location.origin+'/?b='+ref+'&k='+((state.last&&state.last.ref===ref&&state.last.k)||qrTok(ref))}
 function qrSVG(t){try{var q=qrcode(0,'M');q.addData(t);q.make();return q.createSvgTag({cellSize:4,margin:0,scalable:true})}catch(e){return ''}}
 function renderPanel(scroll){
   var h=state.view==='list'?listView():state.view==='detail'?detailView():state.view==='book'?bookView():state.view==='mine'?mineView():doneView();
@@ -3043,13 +3042,22 @@ panel.addEventListener('submit',function(e){
   if(bad){bad.focus();return}
   var l=LOCS.filter(function(x){return x.id===state.sel})[0],pr=priceFor(),btn=$('#payBtn'),n=nBags();
   btn.disabled=true;btn.textContent=T("Processing payment…");
-  var snap={phone:phoneVal('fp'),name:fn.value.trim(),loc:l.id,bags:n,cnt:Object.assign({},state.items),items:itemsText(),total:pr.total,dDate:state.drop.date,dTime:state.drop.time,pDate:state.pick.date,pTime:state.pick.time,days:stayDays()};
-  setTimeout(function(){
-    var al='ABCDEFGHJKMNPQRSTUVWXYZ23456789',ref='CO-';for(var i=0;i<5;i++)ref+=al.charAt(Math.floor(Math.random()*al.length));
-    snap.ref=ref;snap.days.forEach(function(d){var k=l.id+d;state.booked[k]=(state.booked[k]||0)+snap.bags});
-    state.paid[snap.loc]=true;addBooking(snap);state.last=snap;state.view='done';refresh(false);renderPanel(true);
-  },1100);
+  var payE=$('#payE');payE.textContent='';
+  api('/api/checkout',{partner:l.id,name:fn.value.trim(),email:fe.value.trim(),phone:phoneVal('fp'),agree:true,items:Object.assign({},state.items),drop:{date:state.drop.date,time:state.drop.time},pick:{date:state.pick.date,time:state.pick.time}}).then(function(j){
+    if(j&&j.ok&&j.url){location.href=j.url;return}
+    btn.disabled=false;btn.textContent=tp('Pay {0}',fmt.format(pr.total));payE.textContent=payMsg(j);
+  });
 });
+function payMsg(j){
+  var e=j&&j.error;
+  if(e==='not_configured')return T("Online payment is not switched on yet. Please try again soon.");
+  if(e==='rate_limited')return T("Too many attempts. Please try again in a while.");
+  if(e==='partner_unavailable')return T("This place is no longer available. Choose another location.");
+  if(e==='in_the_past'||e==='bad_date'||e==='bad_time'||e==='same_day_only')return T("Check the dates and times and try again.");
+  if(e==='bad_name'||e==='bad_email'||e==='bad_phone'||e==='bad_items'||e==='no_bags'||e==='must_agree')return T("Check your details and try again.");
+  return T("Payment could not be started. Please try again.");
+}
+window.addEventListener('pageshow',function(e){if(e.persisted&&state.view==='book')location.reload()});
 function onTimes(changedDrop){
   if(changedDrop)shiftPickup();
   readTimes();refresh(true);
@@ -3411,6 +3419,36 @@ var initLang='';try{initLang=localStorage.getItem('carryoff-lang')||''}catch(e){
 if(!initLang){var nl=String(navigator.language||'en').toLowerCase().slice(0,2);if(nl==='no'||nl==='nn')nl='nb';initLang=nl}
 if(!LANGS.some(function(x){return x[0]===initLang}))initLang='en';
 readTimes();refresh(true);fitAll();updatePins();
+/* ---------- coming back from Stripe (or opening the link in the email) ---------- */
+function showNotice(t){
+  var n=document.getElementById('notice');
+  if(!n){n=document.createElement('div');n.id='notice';n.className='banner';n.setAttribute('role','status');n.style.cssText='margin:12px auto;max-width:960px';panel.parentNode.insertBefore(n,panel.parentNode.firstChild)}
+  n.textContent=t;n.hidden=!t;if(t)n.scrollIntoView({block:'center'});
+}
+function showBooking(j,k){
+  var l=byId(j.partner);if(!l){showNotice(T("We could not open this booking."));return}
+  var cnt=j.items,n=cnt.pack+cnt.med+cnt.large;
+  var snap={ref:j.ref,loc:l.id,name:j.name,phone:j.phone,bags:n,cnt:cnt,items:itemsStr(cnt),total:j.totalCents/100,dDate:j.date,dTime:j.dropTime,pDate:j.date,pTime:j.pickTime,days:[j.date],k:k||j.k};
+  state.paid[l.id]=true;if(!bookingByRef(j.ref))addBooking(snap);
+  state.last=snap;state.sel=l.id;state.view='done';updatePins();renderPanel(true);
+}
+function handleReturn(){
+  var q=new URLSearchParams(location.search),ref=q.get('paid')||q.get('b'),k=q.get('k'),can=q.get('cancelled');
+  if(!ref&&!can)return;
+  history.replaceState(null,'',location.pathname);
+  if(can){showNotice(T("Payment was cancelled and you have not been charged. You can try again."));return}
+  var tries=0;
+  (function go(){
+    api('/api/booking?ref='+encodeURIComponent(ref)+'&k='+encodeURIComponent(k||'')).then(function(j){
+      if(!j||!j.ok){showNotice(T("We could not open this booking. Use the link in your confirmation email."));return}
+      if(j.status==='pending_payment'&&tries++<15){showNotice(T("Confirming your payment…"));setTimeout(go,1500);return}
+      if(j.status==='pending_payment'||j.status==='cancelled'){showNotice(T("We have not received your payment yet. If you were charged, your confirmation email will arrive shortly."));return}
+      showNotice('');showBooking(j,k);
+    });
+  })();
+}
+handleReturn();
+
 setLang(initLang);
 
 if(location.hash==='#partners')showView('partners',false);

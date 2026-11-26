@@ -6,6 +6,9 @@ const NAMES = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'RESEND_API_KEY', 'SESSION
 export const onRequestGet = handler(async ({ env }) => {
   const settings = Object.fromEntries(NAMES.map((n) => [n, !!env[n]]));
   const missing = NAMES.filter((n) => !env[n]);
+  settings.STRIPE_SECRET_KEY = !!env.STRIPE_SECRET_KEY; // payments: optional until stage 2 is switched on
+  settings.STRIPE_WEBHOOK_SECRET = !!env.STRIPE_WEBHOOK_SECRET;
+  const payments = settings.STRIPE_SECRET_KEY && settings.STRIPE_WEBHOOK_SECRET;
   let database = 'not tested', detail;
   if (env.SUPABASE_URL && env.SUPABASE_SECRET_KEY) {
     try {
@@ -24,5 +27,5 @@ export const onRequestGet = handler(async ({ env }) => {
       detail = { message: 'network error: the Supabase URL is probably wrong' };
     }
   }
-  return json({ ok: missing.length === 0 && database === 'ok', missing, settings, database, detail });
+  return json({ ok: missing.length === 0 && database === 'ok', payments, missing, settings, database, detail });
 });

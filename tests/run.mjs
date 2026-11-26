@@ -10,16 +10,24 @@ import * as ownerTotp from '../functions/api/auth/owner/totp.js';
 import * as me from '../functions/api/me.js';
 import * as logout from '../functions/api/auth/logout.js';
 import * as apply from '../functions/api/apply.js';
+import * as checkout from '../functions/api/checkout.js';
+import * as webhook from '../functions/api/stripe-webhook.js';
+import * as bookingApi from '../functions/api/booking.js';
+import * as qrApi from '../functions/api/qr.js';
+import { createHmac } from 'node:crypto';
+import { inflateSync } from 'node:zlib';
+import { nowInVarna } from '../functions/_shared/pricing.js';
 
 const ORIGIN = 'https://carryoff.eu';
 const env = {
   SUPABASE_URL: 'https://fake.supabase.co', SUPABASE_SECRET_KEY: 'sb_secret_test', SESSION_SECRET: 'x'.repeat(40),
-  RESEND_API_KEY: 're_test', OWNER_EMAIL: 'Owner@Example.com',
+  RESEND_API_KEY: 're_test', OWNER_EMAIL: 'Owner@Example.com', STRIPE_SECRET_KEY: 'sk_test_x', STRIPE_WEBHOOK_SECRET: 'whsec_test',
 };
 
 // ---------- fake backends ----------
-const tables = { partners: [], partner_applications: [], login_codes: [], owner_settings: [], email_log: [] };
+const tables = { partners: [], partner_applications: [], login_codes: [], owner_settings: [], email_log: [], bookings: [] };
 const outbox = [];
+const stripeCalls = [];
 let resendFails = false;
 let idc = 1;
 function matches(row, k, v) {
@@ -36,6 +44,11 @@ globalThis.fetch = async (url, init = {}) => {
     if (resendFails) return new Response('boom', { status: 500 });
     outbox.push(JSON.parse(init.body));
     return new Response('{"id":"1"}', { status: 200 });
+  }
+  if (u.host === 'api.stripe.com') {
+    assert.equal(init.headers.authorization, 'Bearer sk_test_x');
+    const p = new URLSearchParams(init.body); stripeCalls.push(Object.fromEntries(p));
+    return new Response(JSON.stringify({ id: 'cs_test_' + stripeCalls.length, url: 'https://checkout.stripe.com/c/pay/cs_test_' + stripeCalls.length }), { status: 200 });
   }
   const table = u.pathname.split('/').pop();
   const t = tables[table]; if (!t) return new Response('no table', { status: 404 });
@@ -222,6 +235,109 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   for (let i = 0; i < 25; i++) tables.email_log.push({ id: 2000 + i, to_email: 'x@x', kind: 'login_code', status: 'sent', created_at: new Date().toISOString() });
   const n0 = outbox.length; tables.login_codes.length = 0; await post(partnerSend, { email: 'mosaic@example.com' });
   assert.equal(outbox.length, n0); assert.equal(tables.email_log.at(-1).status, 'blocked'); ok('sending stops cleanly at the 100/day limit');
+}
+
+
+// ---------- stage 2: payments and bookings ----------
+{
+  tables.partners.push({ id: 'aurora', name: 'Hotel Aurora', email: 'a@example.com', active: true, paused: false, address: 'Sample address 1', lat: 43.2, lng: 27.9 });
+  tables.partners.push({ id: 'paused', name: 'Paused', email: 'p@example.com', active: true, paused: true });
+  tables.email_log.length = 0; outbox.length = 0;
+  const today = nowInVarna().date;
+  const day = new Date(Date.parse(today + 'T00:00:00Z') + 2 * 864e5).toISOString().slice(0, 10);
+  const good = { partner: 'aurora', name: 'Ann Lee', email: 'Ann@Example.com', phone: '+359 881234567', agree: true, items: { pack: 0, med: 1, large: 0 }, drop: { date: day, time: '10:00' }, pick: { date: day, time: '12:00' } };
+  const co = (b) => post(checkout, b);
+
+  let r = await co(good); let j = await r.json();
+  assert.equal(r.status, 200); assert.match(j.url, /^https:\/\/checkout\.stripe\.com\//);
+  let bk = tables.bookings.at(-1);
+  assert.equal(bk.total_cents, 500); assert.equal(bk.status, 'pending_payment'); assert.equal(bk.customer_email, 'ann@example.com');
+  assert.equal(stripeCalls.at(-1)['line_items[0][price_data][unit_amount]'], '500');
+  assert.match(stripeCalls.at(-1).success_url, /\/\?paid=CO-[A-Z0-9]{5}&k=/);
+  ok('checkout saves a pending booking and sends the server-computed price to Stripe (EUR 5.00 for 1 medium, 2 h)');
+
+  r = await co({ ...good, items: { pack: 2, med: 0, large: 1 }, pick: { date: day, time: '14:00' } });
+  assert.equal(tables.bookings.at(-1).total_cents, 2 * 500 + 700); // 4 h => over-3-hour tier: 2x5 + 1x7
+  ok('over 3 hours uses the higher flat price');
+
+  r = await co({ ...good, total: 1, price: 1, items: { pack: 1, med: 0, large: 0 } });
+  assert.equal(tables.bookings.at(-1).total_cents, 400); ok('a price sent by the browser is ignored');
+
+  for (const [why, bad, code] of [
+    ['overnight', { pick: { date: new Date(Date.parse(day) + 864e5).toISOString().slice(0, 10), time: '10:00' } }, 'same_day_only'],
+    ['past day', { drop: { date: '2020-01-01', time: '10:00' }, pick: { date: '2020-01-01', time: '12:00' } }, 'bad_date'],
+    ['pick-up before drop-off', { pick: { date: day, time: '09:00' } }, 'bad_time'],
+    ['odd minutes', { drop: { date: day, time: '10:07' } }, 'bad_time'],
+    ['no bags', { items: { pack: 0, med: 0, large: 0 } }, 'no_bags'],
+    ['11 bags of one kind', { items: { pack: 11, med: 0, large: 0 } }, 'bad_items'],
+    ['no tick box', { agree: false }, 'must_agree'],
+    ['bad email', { email: 'nope' }, 'bad_email'],
+    ['bad phone', { phone: '123' }, 'bad_phone'],
+    ['unknown place', { partner: 'ghost' }, 'partner_unavailable'],
+    ['paused place', { partner: 'paused' }, 'partner_unavailable'],
+  ]) {
+    const n = tables.bookings.length; r = await co({ ...good, ...bad });
+    assert.equal(r.status >= 400, true, why); assert.equal((await r.json()).error, code, why); assert.equal(tables.bookings.length, n, why + ': nothing saved');
+  }
+  ok('11 kinds of bad input are refused and nothing is saved');
+
+  const saved = env.STRIPE_SECRET_KEY; delete env.STRIPE_SECRET_KEY;
+  const n1 = tables.bookings.length; r = await co(good); assert.equal(r.status, 503); assert.equal(tables.bookings.length, n1);
+  env.STRIPE_SECRET_KEY = saved; ok('without Stripe keys: clean "not configured", no stray booking');
+
+  // webhook
+  const ref = bk.ref; const sessionId = 'cs_test_1';
+  const evt = (type, over = {}) => JSON.stringify({ type, data: { object: { id: sessionId, metadata: { ref }, payment_status: 'paid', amount_total: 500, currency: 'eur', ...over } } });
+  const sign = (body, t = Math.floor(Date.now() / 1000), secret = 'whsec_test') => `t=${t},v1=${createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')}`;
+  const hook = (body, sig) => webhook.onRequestPost({ env, request: new Request(ORIGIN + '/api/stripe-webhook', { method: 'POST', headers: sig ? { 'stripe-signature': sig } : {}, body }) });
+  let body = evt('checkout.session.completed');
+  assert.equal((await hook(body)).status, 400);
+  assert.equal((await hook(body, sign(body, undefined, 'whsec_wrong'))).status, 400);
+  assert.equal((await hook(body, sign(body, Math.floor(Date.now() / 1000) - 3600))).status, 400);
+  assert.equal(tables.bookings.find((x) => x.ref === ref).status, 'pending_payment'); ok('webhook without a valid, fresh signature is refused and changes nothing');
+
+  body = evt('checkout.session.completed', { amount_total: 1 });
+  assert.equal((await hook(body, sign(body))).status, 200); assert.equal(tables.bookings.find((x) => x.ref === ref).status, 'pending_payment'); assert.equal(outbox.length, 0);
+  body = evt('checkout.session.completed', { payment_status: 'unpaid' });
+  await hook(body, sign(body)); assert.equal(tables.bookings.find((x) => x.ref === ref).status, 'pending_payment');
+  ok('wrong amount or unpaid session never confirms a booking');
+
+  body = evt('checkout.session.completed');
+  assert.equal((await hook(body, sign(body))).status, 200);
+  assert.equal(tables.bookings.find((x) => x.ref === ref).status, 'booked'); assert.equal(outbox.length, 1);
+  const mail = outbox[0]; assert.equal(mail.to[0], 'ann@example.com');
+  assert.match(mail.html, /api\/qr\?ref=CO-[A-Z0-9]{5}&amp;k=/); assert.match(mail.html, /google\.com\/maps\/dir\/\?api=1&amp;destination=43\.2,27\.9/); assert.match(mail.html, /Sample address 1/);
+  await hook(body, sign(body)); assert.equal(outbox.length, 1); ok('payment confirmed: booked, one email with QR, address and directions; repeat delivery sends nothing more');
+
+  // lookup
+  const bkr = tables.bookings.find((x) => x.ref === ref);
+  const tok = new URL(/href="([^"]*paid=[^"]*)"/.exec(mail.html)[1].replace(/&amp;/g, '&')).searchParams.get('k');
+  const look = (q) => bookingApi.onRequestGet({ env, request: new Request(ORIGIN + '/api/booking?' + q) });
+  r = await look(`ref=${ref}&k=${tok}`); j = await r.json(); assert.equal(j.place.address, 'Sample address 1'); assert.equal(j.status, 'booked');
+  r = await look(`ref=${ref}&email=ANN@example.com`); assert.equal(r.status, 200);
+  assert.equal((await look(`ref=${ref}&email=other@example.com`)).status, 404);
+  assert.equal((await look(`ref=${ref}&k=wrong`)).status, 404);
+  assert.equal((await look(`ref=CO-ZZZZZ&email=ann@example.com`)).status, 404);
+  assert.equal((await look(`ref=${ref}`)).status, 404);
+  ok('booking lookup needs the signed link or reference + matching email');
+  const pend = tables.bookings.find((x) => x.status === 'pending_payment');
+  j = await (await look(`ref=${pend.ref}&email=${pend.customer_email}`)).json(); assert.equal(j.place, null); ok('address stays hidden until the booking is paid');
+
+  // qr
+  r = await qrApi.onRequestGet({ env, request: new Request(`${ORIGIN}/api/qr?ref=${ref}&k=${tok}`) });
+  const png = new Uint8Array(await r.arrayBuffer());
+  assert.equal(r.headers.get('content-type'), 'image/png'); assert.deepEqual([...png.slice(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
+  const w = (png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19]; assert.ok(w > 100 && w % 8 === 0);
+  const idatLen = (png[33] << 24) | (png[34] << 16) | (png[35] << 8) | png[36]; assert.equal(String.fromCharCode(...png.slice(37, 41)), 'IDAT');
+  const rawPx = inflateSync(Buffer.from(png.slice(41, 41 + idatLen))); assert.equal(rawPx.length, (Math.ceil(w / 8) + 1) * w);
+  for (let y = 0; y < w; y++) assert.equal(rawPx[y * (Math.ceil(w / 8) + 1)], 0, 'PNG row filter byte must be 0');
+  r = await qrApi.onRequestGet({ env, request: new Request(`${ORIGIN}/api/qr?ref=${ref}&k=bad`) }); assert.equal(r.status, 404);
+  ok('QR image is a valid PNG; bad token gets nothing');
+
+  // expiry
+  body = evt('checkout.session.expired', { id: 'cs_test_2', metadata: { ref: pend.ref } });
+  pend.stripe_session_id = 'cs_test_2';
+  await hook(body, sign(body)); assert.equal(pend.status, 'cancelled'); ok('abandoned checkout is cancelled when Stripe says it expired');
 }
 
 // ---------- not configured ----------

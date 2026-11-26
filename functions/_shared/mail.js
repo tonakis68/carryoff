@@ -91,13 +91,24 @@ export const tpl = {
       `<p><b>${esc(a.name)}</b> (${esc(a.type || '-')})<br>${esc(a.address)}</p><p>Contact: ${esc(a.contact)}<br>${esc(a.phone)}<br>${esc(a.email)}</p>` +
       `<p>Capacity: ${a.cap_pack} backpacks, ${a.cap_med} medium, ${a.cap_large} large<br>Hours: ${esc(a.opens)}–${esc(a.closes)}</p><p>Reference: <b>${esc(a.ref)}</b></p>`),
   }),
-  // Booking emails: used from stage 2 (payments).
-  bookingConfirmed: (b) => ({
-    kind: 'booking_confirmed',
-    subject: `Your CarryOff booking ${b.ref} is confirmed`,
-    text: `Booking ${b.ref}. Show this code at ${b.place} on ${b.date} from ${b.time}. Last pick-up ${b.lastPickup}.`,
-    html: wrap('Booking confirmed', `<p>Your booking code:</p><p style="font-size:28px;font-weight:700;letter-spacing:3px;margin:4px 0">${esc(b.ref)}</p><p>Show it at <b>${esc(b.place)}</b> on ${esc(b.date)} from ${esc(b.time)}. Last pick-up ${esc(b.lastPickup)}.</p>`),
-  }),
+  // Booking confirmation, sent only after Stripe confirms the payment.
+  bookingConfirmed: (b) => {
+    const dir = b.lat != null && b.lng != null ? `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}` : '';
+    const btn = (href, label) => `<a href="${esc(href)}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:700;margin:4px 8px 4px 0">${esc(label)}</a>`;
+    return {
+      kind: 'booking_confirmed',
+      subject: `Your CarryOff booking ${b.ref} is confirmed`,
+      text: `Booking ${b.ref} is confirmed and paid (EUR ${b.total}).\nPlace: ${b.place}, ${b.address}\nDrop-off ${b.date} at ${b.dropTime}. Pick up the same day by ${b.pickTime}.\n` +
+        (dir ? `Directions: ${dir}\n` : '') + `Your booking: ${b.bookingUrl}\nShow the booking code ${b.ref} when you drop off. Keep your passport, keys, phone, cash, medication and electronics with you: bags cannot be opened while stored.`,
+      html: wrap('Booking confirmed',
+        `<p style="margin:0 0 4px">Your booking code:</p><p style="font-size:28px;font-weight:700;letter-spacing:3px;margin:0 0 12px">${esc(b.ref)}</p>` +
+        `<p style="margin:0 0 12px"><img src="${esc(b.qrUrl)}" width="180" height="180" alt="QR code for booking ${esc(b.ref)}" style="display:block;border:1px solid #e3e8f4;border-radius:8px"></p>` +
+        `<p style="margin:0 0 4px"><b>${esc(b.place)}</b><br>${esc(b.address)}</p>` +
+        `<p style="margin:0 0 12px">Drop-off: <b>${esc(b.date)} at ${esc(b.dropTime)}</b><br>Pick up the same day by <b>${esc(b.pickTime)}</b><br>Bags: ${esc(b.bags)} · Paid: EUR ${esc(b.total)}</p>` +
+        `<p style="margin:0 0 12px">${dir ? btn(dir, 'Get directions') : ''}${btn(b.bookingUrl, 'View my booking')}</p>` +
+        `<p style="font-size:13px;color:#5b6784;margin:0">Keep your passport, keys, phone, cash, medication and electronics with you. Bags cannot be opened or accessed while stored.</p>`),
+    };
+  },
   bagsReceived: (b) => ({
     kind: 'bags_received',
     subject: `Your bags are stored at ${b.place}`,
