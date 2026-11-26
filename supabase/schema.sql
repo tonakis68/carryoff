@@ -124,3 +124,11 @@ alter table payouts               enable row level security;
 
 revoke all on partners, partner_applications, login_codes, owner_settings,
               email_log, bookings, payouts from anon, authenticated;
+
+-- The server (service_role) needs explicit access, because Supabase does not
+-- grant it automatically when "Grant API access to new tables" is off.
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
