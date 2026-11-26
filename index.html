@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{-webkit-text-size-adjust:100%}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>CarryOff</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -241,6 +247,8 @@ input.big,select.big{min-height:52px;font-size:16px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 ol.steps{margin:0;padding-left:20px;display:grid;gap:8px;font-size:14px}
 </style>
+</head>
+<body>
 
 <div class="wrap">
   <header class="top">
@@ -3109,6 +3117,13 @@ function refresh(rerender){
 /* ---------- partner area ---------- */
 var pa=$('#partnerApp'),custView=$('#custView'),navBtns=document.querySelectorAll('.nav button[data-v]');
 var pv={tab:'dash',loc:'mosaic',note:null,hl:null,applied:null,flow:null,photoTmp:''};
+function api(path,body){
+  return fetch(path,{method:body===undefined?'GET':'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)})
+    .then(function(r){return r.json().catch(function(){return {ok:false,error:'server_error'}}).then(function(j){j.status=r.status;return j})})
+    .catch(function(){return {ok:false,error:'network',status:0}});
+}
+function apiMsg(j){return j.error==='not_configured'||j.error==='network'||j.error==='server_error'||j.error==='db_error'?T("Login is not available right now. Please try again later."):(j.error==='locked'?T("Too many wrong codes. Try again in 15 minutes."):T("Wrong email or code."))}
+api('/api/me').then(function(j){if(j&&j.ok&&j.role){if(j.role==='partner'&&byId(j.partner.id)){pv.me=j.partner.id;pv.loc=j.partner.id}else if(j.role==='owner')pv.ownerIn=true;if(!pa.hidden)renderPartner()}});
 var bookings=[];
 function byId(id){return LOCS.filter(function(x){return x.id===id})[0]}
 function firstName(n){return String(n).trim().split(/\s+/)[0]||T("Guest")}
@@ -3186,7 +3201,7 @@ function signupHTML(){
     ("<div>"+"<h2>"+T("Application received")+"</h2>"+"<p class=\"sub\">")+esc(a.name)+' · '+tp('reference {0}',esc(a.ref))+'</p></div>'+
     ("<div class=\"lines\">"+"<div>"+"<dt>"+T("Status")+"</dt>"+"<dd>"+T("Pending review")+"</dd>"+"</div>"+"<div>"+"<dt>"+T("Capacity")+"</dt>"+"<dd>")+esc(a.cap)+("</dd>"+"</div>"+"<div>"+"<dt>"+T("Contact")+"</dt>"+"<dd>")+esc(a.email)+'</dd></div></div>'+
     ("<p style=\"margin:0\">"+T("Next, we call you to agree the terms. Once approved you get a partner login and a CarryOff sticker kit, and your location appears on the map.")+"</p>")+
-    ("<p class=\"note\" style=\"margin:0\">"+T("Demo only. Nothing was sent or stored.")+"</p>"+"<button type=\"button\" class=\"btn\" data-tab=\"dash\">"+T("See the partner dashboard")+"</button>"+"</div>");}
+    ("<button type=\"button\" class=\"btn\" data-tab=\"dash\">"+T("See the partner dashboard")+"</button>"+"</div>");}
   var days=[1,2,3,4,5,6,0].map(function(d){return '<label><input type="checkbox" name="pd" value="'+d+'"'+(d!==0?' checked':'')+'>'+DAYN[d]+'</label>'}).join('');
   var types=[T("Café"),T("Hotel or hostel"),T("Shop"),T("Convenience store"),T("Coworking"),T("Other")].map(function(t){return '<option>'+t+'</option>'}).join('');
   return '<div class="row2"><form id="psForm" class="panel-card pform" novalidate>'+
@@ -3201,7 +3216,7 @@ function signupHTML(){
    ("<label class=\"agree\">"+"<input type=\"checkbox\" id=\"ps-agree\">"+T("I agree that CarryOff may contact me about becoming a partner.")+"</label>")+
    '<div id="psErr" class="why" role="alert" style="margin:0"></div>'+
    ("<button type=\"submit\" class=\"btn\">"+T("Send application")+"</button>")+
-   ("<p class=\"note\" style=\"margin:0\">"+T("Demo only. Nothing is sent. Bank details are collected after the agreement is signed.")+"</p>"+"</form>")+
+   ("<p class=\"note\" style=\"margin:0\">"+T("Bank details are collected after the agreement is signed.")+"</p>"+"</form>")+
    ("<aside class=\"panel-card\">"+"<h2 style=\"font-size:18px\">"+T("How it works")+"</h2>"+"<ol class=\"steps\">"+"<li>"+T("You send this application.")+"</li>"+"<li>"+T("We call you within two working days and agree the terms.")+"</li>"+"<li>"+T("You get a partner login and a CarryOff sticker kit, and appear on the map.")+"</li>"+"<li>"+T("Customers book. You see their first name, luggage and times, and mark bags received and returned.")+"</li>"+"<li>"+T("You earn €0.50 for every bag you store, whatever the size or the length of stay. We pay out to your bank account, and the payout terms are set in your agreement.")+"</li>"+"</ol>"+"</aside>"+"</div>");
 }
 var NOWK='';
@@ -3235,12 +3250,16 @@ function earnView(){
    ("<p class=\"note\" style=\"margin:0\">"+T("A bag counts once you tap “Bags received”. Refused bags earn nothing. Payouts are made in the first week of the next month. Past months are sample data.")+"</p>"+"</div>");
 }
 function ownerLogin(){
-  return ("<div class=\"pcol\">"+"<div class=\"panel-card\">"+"<div>"+"<h2>"+T("Owner login")+"</h2>"+"<p class=\"sub\">"+T("Only the CarryOff owner can see all partners’ earnings.")+"</p>"+"</div>")+
-   ("<div>"+"<label class=\"lab2\" for=\"ownEmail\">"+T("Email")+"</label>"+"<input id=\"ownEmail\" class=\"big\" type=\"email\" autocomplete=\"username\" value=\"")+esc(pv.ownEmail||'')+'"></div>'+
-   ("<div>"+"<label class=\"lab2\" for=\"ownPass\">"+T("Password")+"</label>"+"<input id=\"ownPass\" class=\"big\" type=\"password\" autocomplete=\"current-password\">"+"</div>")+
-   (pv.ownErr?("<p class=\"note\" role=\"alert\" style=\"margin:0;color:var(--bad,#b3261e)\">"+T("Wrong email or password.")+"</p>"):'')+
-   ("<button type=\"button\" class=\"btn\" data-login=\"1\">"+T("Log in")+"</button>")+
-   ("<p class=\"note\" style=\"margin:0\">"+T("Demo login: owner@carryoff.demo / carryoff. This is a prototype: a real login must be checked on a server.")+"</p>"+"</div>"+"</div>");
+  var st=pv.ownStep||1,err=pv.ownErr?("<p class=\"note\" role=\"alert\" style=\"margin:0;color:var(--bad,#b3261e)\">"+esc(pv.ownErr===true?T("Wrong email or code."):pv.ownErr)+"</p>"):'';
+  var head="<div class=\"pcol\"><div class=\"panel-card\"><div><h2>"+T("Owner login")+"</h2><p class=\"sub\">"+T("Only the CarryOff owner can see all partners’ earnings.")+"</p></div>";
+  if(st===1)return head+("<div><label class=\"lab2\" for=\"ownEmail\">"+T("Email")+"</label><input id=\"ownEmail\" class=\"big\" type=\"email\" autocomplete=\"username\" value=\"")+esc(pv.ownEmail||'')+"\"></div>"+err+
+    "<button type=\"button\" class=\"btn\" data-osend=\"1\">"+T("Send code")+"</button></div></div>";
+  if(st===2)return head+"<div><label class=\"lab2\" for=\"ownCode\">"+T("6-digit code")+"</label><input id=\"ownCode\" class=\"big\" inputmode=\"numeric\" autocomplete=\"one-time-code\" maxlength=\"6\"></div>"+
+    "<p class=\"note\" style=\"margin:0\">"+esc(T("We sent a code to your email."))+"</p>"+err+
+    "<button type=\"button\" class=\"btn\" data-overify=\"1\">"+T("Continue")+"</button><button type=\"button\" class=\"btn sec2\" data-oback=\"1\">"+T("Use a different email")+"</button></div></div>";
+  var setup=pv.ownSetup?("<div class=\"qrbox\"><div class=\"qrimg\" role=\"img\" aria-label=\"QR\">"+qrSVG(pv.ownSetup.uri)+"</div><p class=\"note\" style=\"margin:0\">"+esc(T("First time: scan this with Google Authenticator (or any authenticator app), then enter the 6-digit code it shows. This QR code is shown only once."))+"</p><p class=\"note\" style=\"margin:0;word-break:break-all\">"+esc(pv.ownSetup.secret)+"</p></div>"):'';
+  return head+setup+"<div><label class=\"lab2\" for=\"ownTotp\">"+T("Authenticator code")+"</label><input id=\"ownTotp\" class=\"big\" inputmode=\"numeric\" autocomplete=\"off\" maxlength=\"6\"></div>"+err+
+    "<button type=\"button\" class=\"btn\" data-ototp=\"1\">"+T("Log in")+"</button></div></div>";
 }
 function ownerView(){
   if(!pv.ownerIn)return ownerLogin();
@@ -3258,10 +3277,10 @@ function partnerLogin(){
   var step2=pv.lgStep===2;
   return ("<div class=\"pcol\">"+"<div class=\"panel-card\">"+"<div>"+"<h2>"+T("Partner login")+"</h2>"+"<p class=\"sub\">"+T("Sign in with the email you used when you joined. We send you a 6-digit code, so there is no password.")+"</p>"+"</div>")+
    (step2?("<div>"+"<label class=\"lab2\" for=\"pCode\">"+T("6-digit code")+"</label>"+"<input id=\"pCode\" class=\"big\" inputmode=\"numeric\" autocomplete=\"one-time-code\" maxlength=\"6\" placeholder=\""+"123456"+"\">"+"</div>")+
-     (pv.lgErr?("<p class=\"note\" role=\"alert\" style=\"margin:0;color:var(--bad,#b3261e)\">"+T("Wrong email or code.")+"</p>"):'')+
+     (pv.lgErr?("<p class=\"note\" role=\"alert\" style=\"margin:0;color:var(--bad,#b3261e)\">"+esc(pv.lgErr===true?T("Wrong email or code."):pv.lgErr)+"</p>"):'')+
      ("<button type=\"button\" class=\"btn\" data-pverify=\"1\">"+T("Log in")+"</button>"+"<button type=\"button\" class=\"btn sec2\" data-pback=\"1\">"+T("Use a different email")+"</button>")
     :("<div>"+"<label class=\"lab2\" for=\"pEmail\">"+T("Email")+"</label>"+"<input id=\"pEmail\" class=\"big\" type=\"email\" autocomplete=\"username\" value=\"")+esc(pv.lgEmail||'')+("\">"+"</div>"+"<button type=\"button\" class=\"btn\" data-psend=\"1\">"+T("Send code")+"</button>"))+
-   ("<p class=\"note\" style=\"margin:0\">"+T("Demo: use mosaic@partner.demo, aurora@partner.demo, paper@partner.demo, kiosk@partner.demo, dive@partner.demo or green@partner.demo. The code is always 123456.")+"</p>"+"</div>"+"</div>");
+   (pv.lgInfo?("<p class=\"note\" role=\"status\" style=\"margin:0\">"+esc(pv.lgInfo)+"</p>"):'')+("</div>"+"</div>");
 }
 function renderPartner(){
   var nav=("<div class=\"nav\" role=\"group\" aria-label=\""+T("Partner area sections")+"\">"+"<button type=\"button\" data-tab=\"dash\" aria-current=\"")+(pv.tab==='dash')+("\">"+T("Dashboard")+"</button>"+"<button type=\"button\" data-tab=\"earn\" aria-current=\"")+(pv.tab==='earn')+("\">"+T("Earnings")+"</button>"+"<button type=\"button\" data-tab=\"owner\" aria-current=\"")+(pv.tab==='owner')+("\">"+T("Owner (demo)")+"</button>"+"<button type=\"button\" data-tab=\"signup\" aria-current=\"")+(pv.tab==='signup')+("\">"+T("Become a partner")+"</button>"+"</div>");
@@ -3338,9 +3357,12 @@ function submitApp(){
   if(!nd)errs.push(T("Choose at least one opening day."));
   if(!g('ps-agree').checked)errs.push(T("Tick the box to agree to be contacted."));
   if(errs.length){g('psErr').textContent=errs.join(' ');return}
-  var al='ABCDEFGHJKMNPQRSTUVWXYZ23456789',ref='P-';for(var i=0;i<4;i++)ref+=al.charAt(Math.floor(Math.random()*al.length));
-  pv.applied={name:name,ref:ref,email:email,cap:tp('{0} backpacks, {1} medium, {2} large',cp,cm,cl)};
-  renderPartner();window.scrollTo(0,0);
+  var btn=g('psForm').querySelector('button[type=submit]');if(btn)btn.disabled=true;
+  var days=[].map.call(document.querySelectorAll('input[name=pd]:checked'),function(x){return +x.value});
+  api('/api/apply',{name:name,type:g('ps-type').value,address:addr,contact:contact,phone:phoneVal('ps-phone'),email:email,cap_pack:cp,cap_med:cm,cap_large:cl,opens:g('ps-open').value,closes:g('ps-close').value,days:days,website:''}).then(function(j){
+    if(j.ok){pv.applied={name:name,ref:j.ref,email:email,cap:tp('{0} backpacks, {1} medium, {2} large',cp,cm,cl)};renderPartner();window.scrollTo(0,0)}
+    else{if(btn)btn.disabled=false;g('psErr').textContent=j.error==='too_many'?T("Too many applications. Please try again later."):T("Something went wrong. Please try again later.")}
+  });
 }
 pa.addEventListener('click',function(e){
   var t=e.target.closest('[data-tab]');
@@ -3348,7 +3370,16 @@ pa.addEventListener('click',function(e){
   var f=e.target.closest('[data-flow]');
   if(f){var b=bookingByRef(f.getAttribute('data-ref'));if(b)openFlow(b);return}
   if(e.target.closest('[data-flow-close]')){pv.flow=null;pv.photoTmp='';renderPartner();return}
-  if(e.target.closest('[data-refuse]'))doRefuse();   var pb=e.target.closest('[data-pay]');if(pb){pv.paid=pv.paid||{};pv.paid[(pv.month||NOWK)+'|'+pb.getAttribute('data-pay')]=true;renderPartner();return}   if(e.target.closest('[data-login]')){var em=document.getElementById('ownEmail').value.trim().toLowerCase(),pw=document.getElementById('ownPass').value;pv.ownEmail=em;if(em==='owner@carryoff.demo'&&pw==='carryoff'){pv.ownerIn=true;pv.ownErr=false}else pv.ownErr=true;renderPartner();return}   if(e.target.closest('[data-psend]')){pv.lgEmail=document.getElementById('pEmail').value.trim().toLowerCase();pv.lgStep=2;pv.lgErr=false;renderPartner();return}  if(e.target.closest('[data-pback]')){pv.lgStep=1;pv.lgErr=false;renderPartner();return}  if(e.target.closest('[data-pverify]')){var cd=document.getElementById('pCode').value.trim(),id=(pv.lgEmail||'').replace('@partner.demo','');if(cd==='123456'&&(pv.lgEmail||'').slice(-13)==='@partner.demo'&&byId(id)){pv.me=id;pv.loc=id;pv.lgStep=1;pv.lgErr=false;pv.note=null;pv.hl=null}else pv.lgErr=true;renderPartner();return}  if(e.target.closest('[data-plogout]')){pv.me=null;pv.flow=null;pv.lgStep=1;pv.lgErr=false;renderPartner();return}  if(e.target.closest('[data-logout]')){pv.ownerIn=false;pv.ownErr=false;renderPartner();return}   if(e.target.closest('[data-dl]')){pv.dlNote=true;renderPartner()}
+  if(e.target.closest('[data-refuse]'))doRefuse();   var pb=e.target.closest('[data-pay]');if(pb){pv.paid=pv.paid||{};pv.paid[(pv.month||NOWK)+'|'+pb.getAttribute('data-pay')]=true;renderPartner();return}   if(e.target.closest('[data-osend]')){var oe=document.getElementById('ownEmail').value.trim().toLowerCase();pv.ownEmail=oe;pv.ownErr=false;api('/api/auth/owner/send',{email:oe}).then(function(j){if(j.ok)pv.ownStep=2;else pv.ownErr=apiMsg(j);renderPartner()});return}
+   if(e.target.closest('[data-oback]')){pv.ownStep=1;pv.ownErr=false;renderPartner();return}
+   if(e.target.closest('[data-overify]')){pv.ownErr=false;api('/api/auth/owner/verify',{email:pv.ownEmail,code:document.getElementById('ownCode').value.trim()}).then(function(j){if(j.ok){pv.ownStep=3;pv.ownSetup=j.next==='setup'?{uri:j.uri,secret:j.secret}:null}else pv.ownErr=apiMsg(j);renderPartner()});return}
+   if(e.target.closest('[data-ototp]')){pv.ownErr=false;api('/api/auth/owner/totp',{code:document.getElementById('ownTotp').value.trim()}).then(function(j){if(j.ok){pv.ownerIn=true;pv.ownStep=1;pv.ownSetup=null}else pv.ownErr=apiMsg(j);renderPartner()});return}
+   if(e.target.closest('[data-psend]')){pv.lgEmail=document.getElementById('pEmail').value.trim().toLowerCase();pv.lgErr=false;pv.lgInfo='';api('/api/auth/partner/send',{email:pv.lgEmail}).then(function(j){if(j.ok){pv.lgStep=2;pv.lgInfo=T("If this email belongs to a partner, a code is on its way.")}else pv.lgErr=apiMsg(j);renderPartner()});return}
+   if(e.target.closest('[data-pback]')){pv.lgStep=1;pv.lgErr=false;pv.lgInfo='';renderPartner();return}
+   if(e.target.closest('[data-pverify]')){pv.lgErr=false;api('/api/auth/partner/verify',{email:pv.lgEmail,code:document.getElementById('pCode').value.trim()}).then(function(j){if(j.ok&&byId(j.partner.id)){pv.me=j.partner.id;pv.loc=j.partner.id;pv.lgStep=1;pv.lgInfo='';pv.note=null;pv.hl=null}else pv.lgErr=j.ok?apiMsg({error:'server_error'}):apiMsg(j);renderPartner()});return}
+   if(e.target.closest('[data-plogout]')){api('/api/auth/logout',{});pv.me=null;pv.flow=null;pv.lgStep=1;pv.lgErr=false;pv.lgInfo='';renderPartner();return}
+   if(e.target.closest('[data-logout]')){api('/api/auth/logout',{});pv.ownerIn=false;pv.ownStep=1;pv.ownErr=false;renderPartner();return}
+   if(e.target.closest('[data-dl]')){pv.dlNote=true;renderPartner()}
 });
 pa.addEventListener('submit',function(e){
   e.preventDefault();
@@ -3417,3 +3448,5 @@ setLang(initLang);
 if(location.hash==='#partners')showView('partners',false);
 })();
 </script>
+</body>
+</html>

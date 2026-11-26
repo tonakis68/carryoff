@@ -1,0 +1,46 @@
+# CarryOff stage 1: setup
+
+What stage 1 adds: real partner login (emailed 6-digit code), real owner login (emailed code
+plus an authenticator app), a working "Become a partner" form that emails the owner, and the
+database and email code that later stages build on. Bookings and the partner dashboard still
+show sample data until stage 2 and 3.
+
+## 1. Database (Supabase)
+1. Supabase → your project → **SQL Editor** → **New query**.
+2. Paste all of `supabase/schema.sql`, click **Run**. Expect "Success".
+3. New query again → paste `supabase/seed.sql` → **Run**.
+4. Table Editor → `partners`: change the email of one row (for example `mosaic`) to your own
+   email, in lowercase. That is how you test the partner login.
+
+## 2. Keys (never paste these in chat, email or GitHub)
+Supabase → Project Settings → **API Keys**: copy the **Project URL** and the **secret** key
+(`sb_secret_...`). Do NOT use the `publishable` / `anon` key here.
+
+Resend → **API Keys** → Create API key, name `carryoff`, permission **Sending access**,
+domain `carryoff.eu`.
+
+Make a random session secret: any 40+ random characters from your password manager.
+
+## 3. Cloudflare settings
+Workers & Pages → `carryoff` → **Settings** → **Variables and Secrets** → Add. Add each one for
+BOTH Production and Preview. Use type **Secret** for the four marked (S).
+
+| Name | Value |
+|---|---|
+| `SUPABASE_URL` | the Project URL |
+| `SUPABASE_SECRET_KEY` (S) | the Supabase secret key |
+| `RESEND_API_KEY` (S) | the Resend API key |
+| `SESSION_SECRET` (S) | your random 40+ characters |
+| `OWNER_EMAIL` | the email you log in as owner with |
+
+Optional: `MAIL_FROM` (default `CarryOff <no-reply@carryoff.eu>`), `MAIL_REPLY_TO`
+(default `hello@carryoff.eu`).
+
+## 4. Try it
+Open the preview address of the `stage-1` branch (Cloudflare → carryoff → Deployments).
+* For partners → Dashboard → enter the email you set on a partner → code arrives → log in.
+* For partners → Owner → your OWNER_EMAIL → code → first time you scan a QR code with Google
+  Authenticator, enter its 6 digits. The QR code is shown only once.
+
+## Tests
+`node tests/run.mjs` runs 24 checks of the server code against fakes (no keys needed).
