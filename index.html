@@ -3123,7 +3123,7 @@ function api(path,body){
     .catch(function(){return {ok:false,error:'network',status:0}});
 }
 function apiMsg(j){return j.error==='not_configured'||j.error==='network'||j.error==='server_error'||j.error==='db_error'?T("Login is not available right now. Please try again later."):(j.error==='locked'?T("Too many wrong codes. Try again in 15 minutes."):T("Wrong email or code."))}
-api('/api/me').then(function(j){if(j&&j.ok&&j.role){if(j.role==='partner'&&byId(j.partner.id)){pv.me=j.partner.id;pv.loc=j.partner.id}else if(j.role==='owner')pv.ownerIn=true;if(!pa.hidden)renderPartner()}});
+api('/api/me').then(function(j){if(j&&j.ok&&j.role){if(j.role==='partner'&&byId(j.partner.id)){pv.me=j.partner.id;pv.loc=j.partner.id}else if(j.role==='owner'){pv.ownerIn=true;if(!pv.me&&pv.tab==='dash')pv.tab='owner'}if(!pa.hidden)renderPartner()}});
 var bookings=[];
 function byId(id){return LOCS.filter(function(x){return x.id===id})[0]}
 function firstName(n){return String(n).trim().split(/\s+/)[0]||T("Guest")}
