@@ -24,7 +24,7 @@ export async function createCheckout(env, { ref, email, cents, name, successUrl,
   const j = await res.json().catch(() => ({}));
   if (!res.ok || !j.url) {
     console.error('stripe checkout', res.status, JSON.stringify(j).slice(0, 300));
-    throw new HttpError(502, 'payment_error');
+    throw new HttpError(502, 'payment_error', String(j?.error?.message || `Stripe answered ${res.status}`).replace(/(sk|rk|pk)_(test|live)_\w+/g, '[key]').slice(0, 200));
   }
   return { id: j.id, url: j.url };
 }

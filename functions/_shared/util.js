@@ -77,10 +77,11 @@ export async function readJson(request, maxBytes = 20000) {
 }
 
 export class HttpError extends Error {
-  constructor(status, code) {
+  constructor(status, code, detail) {
     super(code);
     this.status = status;
     this.code = code;
+    this.detail = detail; // optional, safe-to-show explanation (never a key or personal data)
   }
 }
 
@@ -97,7 +98,7 @@ export function handler(fn) {
     try {
       return await fn(ctx);
     } catch (e) {
-      if (e instanceof HttpError) return json({ ok: false, error: e.code }, e.status);
+      if (e instanceof HttpError) return json({ ok: false, error: e.code, ...(e.detail ? { detail: e.detail } : {}) }, e.status);
       console.error('unhandled', e && e.stack ? e.stack : e);
       return json({ ok: false, error: 'server_error' }, 500);
     }
