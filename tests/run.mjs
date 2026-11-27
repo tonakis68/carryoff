@@ -19,6 +19,8 @@ import * as pAction from '../functions/api/partner/action.js';
 import * as pPause from '../functions/api/partner/pause.js';
 import * as oSummary from '../functions/api/owner/summary.js';
 import * as oPayout from '../functions/api/owner/payout.js';
+import * as oPartners from '../functions/api/owner/partners.js';
+import * as pubPartners from '../functions/api/partners.js';
 import { makeToken, cookieHeader } from '../functions/_shared/session.js';
 import { createHmac } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
@@ -32,6 +34,7 @@ const env = {
 
 // ---------- fake backends ----------
 const tables = { partners: [], partner_applications: [], login_codes: [], owner_settings: [], email_log: [], bookings: [], payouts: [] };
+let geoResult = [{ lat: '43.2051', lon: '27.9102' }]; const geoCalls = [];
 let refundFails = false; const refunds = [];
 const outbox = [];
 const stripeCalls = [];
@@ -54,6 +57,7 @@ globalThis.fetch = async (url, init = {}) => {
     outbox.push(JSON.parse(init.body));
     return new Response('{"id":"1"}', { status: 200 });
   }
+  if (u.host === 'nominatim.openstreetmap.org') { geoCalls.push(u.searchParams.get('q')); return new Response(JSON.stringify(geoResult)); }
   if (u.host === 'api.stripe.com' && u.pathname === '/v1/refunds') {
     if (refundFails) return new Response('{"error":{"message":"nope"}}', { status: 400 });
     refunds.push({ ...Object.fromEntries(new URLSearchParams(init.body)), key: init.headers['idempotency-key'] });
@@ -427,6 +431,50 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   assert.equal(r.payout.amount_cents, 150); assert.equal(r.payout.status, 'paid');
   await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, owner); assert.equal(tables.payouts.length, 1); ok('owner marks a month as paid: 3 bags x EUR 0.50, once');
   j = await (await get(pBookings, aurora)).json(); assert.equal(j.payouts[0].status, 'paid'); ok('partner sees the month as paid');
+}
+
+
+// ---------- stage 4: real partners, capacity, opening hours ----------
+{
+  const ownerC = cookieHeader((await makeToken(env, 'owner', 'owner')).token, 60).split(';')[0];
+  const get = (mod, cookie) => mod.onRequestGet({ env, request: new Request(ORIGIN + '/api/x', { headers: cookie ? { cookie } : {} }) });
+  const add = (body, cookie = ownerC) => post(oPartners, body, cookie);
+  const base = { area: 'city centre', name: 'Кафе Македония', type: 'Café', address: 'ул. Македония 19', contact: 'Ivan', phone: '+359 888 111222', email: 'Ivan@Example.com', cap: 3, opens: '08:00', closes: '20:00', days: [1, 2, 3, 4, 5, 6], desc: 'Test place', perks: ['Staff on site'] };
+
+  assert.equal((await post(oPartners, base, '')).status, 401); assert.equal((await get(oPartners)).status, 401); ok('only the owner can add partners');
+  assert.equal((await add({ ...base, email: 'nope' })).status, 400); assert.equal((await add({ ...base, closes: '07:00' })).status, 400);
+  geoResult = []; assert.equal((await add(base)).status, 422); ok('bad details or an address that cannot be found are refused');
+  assert.equal((await add({ ...base, coords: '50.1, 10.2' })).status, 422); ok('coordinates outside Varna are refused');
+  geoResult = [{ lat: '43.2051', lon: '27.9102' }]; outbox.length = 0;
+  let r = await add(base), j = await r.json(); assert.equal(r.status, 201); assert.equal(j.id, 'kafe-makedoniya');
+  const row = tables.partners.find((p) => p.id === 'kafe-makedoniya');
+  assert.equal(row.email, 'ivan@example.com'); assert.equal(row.lat, 43.2051); assert.deepEqual(row.hours[0], null); assert.deepEqual(row.hours[1], ['08:00', '20:00']); assert.ok(geoCalls.at(-1).includes('Varna'));
+  const dist = Math.hypot((row.pub_lat - row.lat) * 111320, (row.pub_lng - row.lng) * 111320 * Math.cos(row.lat * Math.PI / 180)); assert.ok(dist > 30 && dist < 100, 'pin offset ' + dist);
+  assert.match(outbox.at(-1).subject, /Welcome/); assert.ok(JSON.stringify(outbox.at(-1).to).includes('ivan@example.com')); ok('owner adds a partner: located, public pin offset, hours saved, welcome email sent');
+  assert.equal((await add(base)).status, 409); ok('the same email cannot be used for two partners');
+  r = await add({ ...base, name: 'Кафе Македония', email: 'second@example.com', coords: '43.2100, 27.9200' }); j = await r.json(); assert.equal(j.id, 'kafe-makedoniya-2'); ok('same name gets its own id; pasted coordinates are used');
+  j = await (await get(oPartners, ownerC)).json(); assert.ok(j.partners.some((p) => p.id === 'kafe-makedoniya')); assert.ok(!('applications' in j) || Array.isArray(j.applications));
+
+  // public list
+  j = await (await get(pubPartners)).json();
+  const pub = j.places.find((p) => p.id === 'kafe-makedoniya');
+  assert.ok(pub && pub.lat === row.pub_lat); assert.equal(pub.area, 'city centre'); assert.ok(!JSON.stringify(j).includes('Кафе') && !JSON.stringify(j).includes('ivan@example.com') && !JSON.stringify(j).includes('Македония 19') && !JSON.stringify(j).includes(String(row.lat)));
+  ok('public list has approximate pins only: no address, email or exact position');
+  await add({ action: 'set_active', id: 'kafe-makedoniya-2', active: false });
+  j = await (await get(pubPartners)).json(); assert.ok(!j.places.some((p) => p.id === 'kafe-makedoniya-2')); ok('a switched-off partner disappears from the public list');
+
+  // capacity and opening hours at checkout
+  const friday = (() => { let d = new Date(Date.now() + 3 * 864e5); while (d.getUTCDay() !== 5) d = new Date(+d + 864e5); return d.toISOString().slice(0, 10); })();
+  const sunday = (() => { let d = new Date(Date.now() + 3 * 864e5); while (d.getUTCDay() !== 0) d = new Date(+d + 864e5); return d.toISOString().slice(0, 10); })();
+  const co = (extra) => post(checkout, { partner: 'kafe-makedoniya', name: 'Cap Test', email: 'cap@example.com', phone: '+359 888123456', agree: true, items: { pack: 1 }, drop: { date: friday, time: '10:00' }, pick: { date: friday, time: '12:00' }, ...extra });
+  assert.equal((await co({ drop: { date: friday, time: '07:00' } })).status, 409); ok('checkout refuses a drop-off before opening');
+  assert.equal((await co({ pick: { date: friday, time: '19:45' } })).status, 409); ok('checkout refuses pick-up in the last 30 minutes before closing');
+  assert.equal((await co({ drop: { date: sunday, time: '10:00' }, pick: { date: sunday, time: '12:00' } })).status, 409); ok('checkout refuses a closed day');
+  assert.equal((await co({ items: { pack: 4 } })).status, 409); ok('checkout refuses more bags than the place can hold');
+  assert.equal((await co({ items: { pack: 2 }, email: 'cap1@example.com' })).status, 200);
+  assert.equal((await co({ items: { pack: 2 }, email: 'cap2@example.com' })).status, 409); ok('bags already booked count against capacity');
+  assert.equal((await co({ items: { pack: 1 }, email: 'cap3@example.com' })).status, 200); ok('the last free space can still be booked');
+  j = await (await get(pubPartners)).json(); assert.equal(j.booked[`kafe-makedoniya|${friday}`], 3); ok('public list shows how many bags are booked per day');
 }
 
 // ---------- not configured ----------

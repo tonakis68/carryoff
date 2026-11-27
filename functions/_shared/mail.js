@@ -91,6 +91,17 @@ export const tpl = {
       `<p><b>${esc(a.name)}</b> (${esc(a.type || '-')})<br>${esc(a.address)}</p><p>Contact: ${esc(a.contact)}<br>${esc(a.phone)}<br>${esc(a.email)}</p>` +
       `<p>Capacity: ${a.cap_pack} backpacks, ${a.cap_med} medium, ${a.cap_large} large<br>Hours: ${esc(a.opens)}–${esc(a.closes)}</p><p>Reference: <b>${esc(a.ref)}</b></p>`),
   }),
+  // Sent when the owner adds a partner: how to log in and what to do. English first, Bulgarian below.
+  partnerWelcome: (b) => ({
+    kind: 'partner_welcome',
+    subject: `Welcome to CarryOff, ${b.name}`,
+    text: `Welcome to CarryOff. Open ${b.origin}, tap "For partners", enter this email address and the 6-digit code we send you. Keep your phone logged in: customers show a QR code, you scan it with the phone camera and the booking opens.\n\nДобре дошли в CarryOff. Отворете ${b.origin}, изберете "For partners", въведете този имейл и 6-цифрения код, който ще получите. Клиентът показва QR код, а вие го сканирате с камерата на телефона.`,
+    html: wrap(`Welcome to CarryOff`,
+      `<p><b>${esc(b.name)}</b> is now a CarryOff storage place.</p>` +
+      `<p><b>How it works</b></p><ol style="padding-left:20px;margin:0 0 12px"><li>Open <a href="${esc(b.origin)}">${esc(b.origin.replace('https://', ''))}</a> on your phone and tap <b>For partners</b>.</li><li>Enter this email address. We send you a 6-digit code. Stay logged in on the phone.</li><li>When a customer arrives, scan their QR code with the phone camera (or type the booking code). Check the bags, write a tag number for each, take a photo, tap <b>Bags received</b>.</li><li>When they come back, scan the QR again, check the ID and the tags, tap <b>Bags returned</b>.</li></ol>` +
+      `<p>You earn <b>€0.50 per bag</b> stored, paid monthly by bank transfer. Questions: hello@carryoff.eu</p><hr style="border:0;border-top:1px solid #e3e8f4;margin:16px 0">` +
+      `<p><b>Добре дошли в CarryOff</b></p><p>Отворете ${esc(b.origin.replace('https://', ''))} на телефона и изберете <b>For partners</b>. Въведете този имейл и 6-цифрения код, който получавате. Когато клиент дойде, сканирайте QR кода му с камерата, проверете багажа, запишете номер на етикет за всеки багаж, направете снимка и натиснете <b>Bags received</b>. При връщане сканирайте отново, проверете документа за самоличност и етикетите и натиснете <b>Bags returned</b>. Получавате <b>0,50 € на багаж</b>, плащане веднъж месечно по банков път.</p>`),
+  }),
   // Booking confirmation, sent only after Stripe confirms the payment.
   bookingConfirmed: (b) => {
     const dir = b.lat != null && b.lng != null ? `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}` : '';

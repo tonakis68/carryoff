@@ -2683,18 +2683,7 @@ var STATIONS=[
 ];
 
 /* Sample partner businesses. Replace with the real agreements. */
-var LOCS=[
- {id:'mosaic',name:'Kafe Mosaic',type:'Café',x:338,y:332,cap:30,busy:.05,addr:'Sample address, city centre',hours:wk(['08:00','20:00'],['08:00','20:00'],['08:00','20:00']),desc:'Counter staff keep bags in a locked back room. Look for the CarryOff sticker on the door.',perks:['Locked back room','Staff on site']},
- {id:'aurora',name:'Hotel Aurora front desk',type:'Hotel',x:420,y:320,cap:60,busy:-.05,addr:'Sample address, near the Sea Garden',hours:wk(ALL,ALL,ALL),desc:'Open around the clock, so late arrivals and early departures are covered.',perks:['Open 24 hours','CCTV in storage room']},
- {id:'paper',name:'Paper & Ink Bookshop',type:'Shop',x:300,y:364,cap:18,busy:.12,addr:'Sample address, city centre',hours:wk(null,['10:00','19:00'],['10:00','19:00']),desc:'A quiet bookshop with a small storage room behind the till. Closed on Sundays.',perks:['Staff on site']},
- {id:'kiosk',name:'Station Kiosk Plus',type:'Kiosk',x:350,y:394,cap:40,busy:.1,addr:'Sample address, by the railway station',hours:wk(['06:00','23:00'],['06:00','23:00'],['06:00','23:00']),desc:'A few steps from the platforms. Best for short stops between trains.',perks:['Next to the station','Early and late hours']},
- {id:'dive',name:'Harbour Dive Shop',type:'Activity shop',x:418,y:396,cap:24,busy:0,addr:'Sample address, port area',hours:wk(['09:00','16:00'],['09:00','18:00'],['09:00','18:00']),desc:'Storage racks beside the dive lockers, close to the port.',perks:['Staff on site']},
- {id:'green',name:'Greenhouse Coworking',type:'Coworking',x:252,y:326,cap:50,busy:-.1,addr:'Sample address, west of the centre',hours:wk(null,['08:00','21:00'],['10:00','16:00']),desc:'Lockers in the entrance hall, watched by the front desk. Closed on Sundays.',perks:['Lockers','CCTV']},
- {id:'gift',name:'Seaside Gift Gallery',type:'Shop',x:452,y:292,cap:20,busy:.2,addr:'Sample address, Sea Garden entrance',hours:wk(['11:00','20:00'],['10:00','21:00'],['10:00','21:00']),desc:'Small shop by the park entrance. Fills up fast on weekends.',perks:['Staff on site']},
- {id:'bike',name:'Bike & Beans',type:'Café',x:272,y:246,cap:22,busy:-.05,addr:'Sample address, near the bus station',hours:wk(['08:30','18:00'],['07:30','19:30'],['08:00','19:30']),desc:'Café and bike repair stand. Bags go in the workshop behind the counter.',perks:['Staff on site']},
- {id:'corner',name:'Corner Store 24',type:'Convenience store',x:210,y:238,cap:36,busy:.02,addr:'Sample address, near the bus station',hours:wk(['06:00','23:00'],['06:00','23:00'],['06:00','23:00']),desc:'Long hours and a back storeroom, a short walk from the bus station.',perks:['Long hours','Staff on site']},
- {id:'hostel',name:'Rail Quarter Hostel',type:'Hostel',x:395,y:438,cap:45,busy:.08,addr:'Sample address, by the railway station',hours:wk(['07:00','23:00'],['07:00','23:00'],['07:00','23:00']),desc:'Luggage room behind reception, close to the station and the port.',perks:['Luggage room','Staff on site']}
-];
+var LOCS=[];
 
 /* Travel time estimates from straight-line distance. Replace with a routing service (Google Maps, Mapbox) on the live site. */
 function travel(loc,st){
@@ -2704,13 +2693,21 @@ function travel(loc,st){
   return {km:wm/1000,walk:walk,car:car,pt:pt,best:best};
 }
 /* Privacy: before a booking is paid, customers see only the type of place and a rough area. */
-function areaOf(l){var a=l.addr.replace(/^Sample address,\s*/,'');return T(a.charAt(0).toUpperCase()+a.slice(1))}
+function areaOf(l){var a=String(l.area||'');return T(a.charAt(0).toUpperCase()+a.slice(1))}
 function shown(l){return !!state.paid[l.id]}
 function nm(l){return shown(l)?l.name:T(l.type)+' · '+areaOf(l)}
 function hsh(str){var h=2166136261;for(var i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
-LOCS.forEach(function(l){var a=(hsh(l.id)%628)/100,d=4+(hsh(l.id+'x')%7);l.fx=l.x+Math.cos(a)*d;l.fy=l.y+Math.sin(a)*d});
-function pos(l){return shown(l)?{x:l.x,y:l.y}:{x:l.fx,y:l.fy}}
-LOCS.forEach(function(l){l.tt={};STATIONS.forEach(function(s){l.tt[s.id]=travel(l,s)})});
+function pos(l){return shown(l)&&l.ex?l.ex:{x:l.x,y:l.y}}
+/* Places come from the server (/api/partners). The public list carries only an approximate pin and an area, never the name or address. */
+function buildLoc(p){
+  var q=proj(p.lat,p.lng),l={id:p.id,name:'',type:p.type||'Place',area:p.area||'',addr:p.area||'',desc:p.desc||'',perks:p.perks||[],cap:p.cap,hours:p.hours,paused:!!p.paused,x:q.x,y:q.y,busy:0};
+  l.tt={};STATIONS.forEach(function(s){l.tt[s.id]=travel(l,s)});return l;
+}
+function applyPlaces(j,first){
+  if(first){LOCS.length=0;(j.places||[]).forEach(function(p){LOCS.push(buildLoc(p))})}
+  else (j.places||[]).forEach(function(p){var l=byId(p.id);if(l){l.paused=!!p.paused;l.cap=p.cap;l.hours=p.hours}});
+  state.booked={};Object.keys(j.booked||{}).forEach(function(k){state.booked[k.replace('|','')]=j.booked[k]});
+}
 
 var state={view:'list',sel:null,onlyAvail:false,sort:'rec',items:{pack:0,med:1,large:0},valid:true,msg:'',dur:300,ev:{},booked:{},last:null,paid:{},drop:{},pick:{}};
 function nBags(){return state.items.pack+state.items.med+state.items.large}
@@ -2754,9 +2751,7 @@ function shiftPickup(){
 /* ---------- availability and price ---------- */
 function freeOn(loc,day){
   var wd=parse(day).getDay(),weekend=(wd===5||wd===6||wd===0)?.1:0;
-  var occ=Math.min(1,Math.max(0,.18+hash(loc.id+day)*.78+weekend+loc.busy));
-  var b=state.booked[loc.id+day]||0;
-  return Math.max(0,loc.cap-Math.round(loc.cap*occ)-b);
+  return Math.max(0,loc.cap-(state.booked[loc.id+day]||0));
 }
 function stayDays(){var out=[],d=parse(state.drop.date),end=parse(state.pick.date);for(var i=0;i<=31&&d<=end;i++){out.push(iso(d));d=addDays(d,1)}return out}
 function isOpen(loc,date,time,margin){var h=loc.hours[parse(date).getDay()];if(!h)return false;var t=minOf(time),m=(h[0]==='00:00'&&h[1]==='24:00')?0:(margin||0);return t>=minOf(h[0])&&t<=minOf(h[1])-m}
@@ -2811,7 +2806,6 @@ function mkPin(loc){
   markers[loc.id]=L.marker(posLL(loc),{icon:L.divIcon({className:'pin-wrap',html:el,iconSize:[32,38],iconAnchor:[16,38]}),keyboard:false}).addTo(lmap);
   pinEls[loc.id]=el;
 }
-LOCS.forEach(mkPin);
 function updatePins(){
   LOCS.forEach(function(l){
     var el=pinEls[l.id],ev=state.ev[l.id]||{status:'na',pin:'–',label:''},sel=state.sel===l.id,ll=posLL(l),hc=haloEls[l.id];
@@ -2854,6 +2848,7 @@ function sorted(){
   return arr;
 }
 function listView(){
+  if(!LOCS.length)return '<div class="empty">'+(state.placesFailed?T("We could not load the storage places. Please reload the page."):T("Storage places will appear here soon."))+'</div>';
   var arr=sorted(),n=LOCS.filter(function(l){var s=state.ev[l.id].status;return s==='ok'||s==='few'}).length;
   var h='<div class="listhead"><div>'+tp('<strong>{0} of {1}</strong> can take your luggage',n,LOCS.length)+'</div>'+
    '<div class="ctl"><label class="chk"><input type="checkbox" id="onlyAvail"'+(state.onlyAvail?' checked':'')+(">"+T("Only available")+"</label>")+
@@ -3103,7 +3098,7 @@ function api(path,body){
     .catch(function(){return {ok:false,error:'network',status:0}});
 }
 function apiMsg(j){return j.error==='not_configured'||j.error==='network'||j.error==='server_error'||j.error==='db_error'?T("Login is not available right now. Please try again later."):(j.error==='locked'?T("Too many wrong codes. Try again in 15 minutes."):T("Wrong email or code."))}
-api('/api/me').then(function(j){if(j&&j.ok&&j.role){if(j.role==='partner'&&byId(j.partner.id)){pv.me=j.partner.id;pv.loc=j.partner.id;loadPartner()}else if(j.role==='owner'){pv.ownerIn=true;loadOwner();if(!pv.me&&pv.tab==='dash')pv.tab='owner'}if(!pa.hidden)renderPartner()}});
+function restoreSession(){api('/api/me').then(function(j){if(j&&j.ok&&j.role){if(j.role==='partner'&&byId(j.partner.id)){pv.me=j.partner.id;pv.loc=j.partner.id;loadPartner()}else if(j.role==='owner'){pv.ownerIn=true;loadOwner();if(!pv.me&&pv.tab==='dash')pv.tab='owner'}if(!pa.hidden)renderPartner()}});}
 var bookings=[];
 function byId(id){return LOCS.filter(function(x){return x.id===id})[0]}
 function firstName(n){return String(n).trim().split(/\s+/)[0]||T("Guest")}
@@ -3229,16 +3224,59 @@ function ownerLogin(){
   return head+setup+"<div><label class=\"lab2\" for=\"ownTotp\">"+T("Authenticator code")+"</label><input id=\"ownTotp\" class=\"big\" inputmode=\"numeric\" autocomplete=\"off\" maxlength=\"6\"></div>"+err+
     "<button type=\"button\" class=\"btn\" data-ototp=\"1\">"+T("Log in")+"</button></div></div>";
 }
+var DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function ownerSubnav(){
+  return '<div class="nav" role="group" aria-label="'+T("Owner sections")+'"><button type="button" data-osub="earn" aria-current="'+((pv.ownSub||'earn')==='earn')+'">'+T("Earnings")+'</button><button type="button" data-osub="partners" aria-current="'+(pv.ownSub==='partners')+'">'+T("Partners")+(pv.ownApps&&pv.ownApps.length?' ('+pv.ownApps.length+')':'')+'</button></div>';
+}
+function ownerPartnersView(){
+  var f=pv.addForm||{},msg=pv.addMsg?'<p class="'+(pv.addMsg.ok?'okmsg':'why')+'" role="status" style="margin:0">'+pv.addMsg.t+'</p>':'';
+  function inp(id,label,val,extra){return '<div><label class="lab2" for="'+id+'">'+label+'</label><input id="'+id+'" class="big" value="'+esc(val||'')+'" '+(extra||'')+'></div>'}
+  var days=DAYN.map(function(d,i){var on=f.days?f.days.indexOf(i)>-1:true;return '<label class="chk" style="margin-right:10px"><input type="checkbox" id="od'+i+'"'+(on?' checked':'')+'> '+T(d)+'</label>'}).join('');
+  var apps=(pv.ownApps||[]).map(function(a,i){
+    return '<div class="panel-card" style="padding:12px"><strong>'+esc(a.name)+'</strong> · '+esc(a.type||'')+'<br><span class="note">'+esc(a.address)+'<br>'+esc(a.contact)+' · '+esc(a.phone)+' · '+esc(a.email)+'</span><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" data-useapp="'+i+'" style="min-height:40px">'+T("Use these details")+'</button><button type="button" class="btn sec2" data-rejectapp="'+esc(a.ref)+'" style="min-height:40px">'+T("Reject")+'</button></div></div>'}).join('');
+  var list=(pv.ownPartners||[]).map(function(p){
+    return '<tr><th scope="row">'+esc(p.name)+'<br><span class="note">'+esc(p.area||'')+'</span></th><td>'+esc(p.email)+'</td><td>'+(p.active?(p.paused?T("Paused"):T("Live")):T("Off"))+'</td><td><button type="button" class="btn sec2" data-pact="'+esc(p.id)+'" data-on="'+(p.active?'0':'1')+'" style="min-height:36px;padding:4px 10px">'+(p.active?T("Switch off"):T("Switch on"))+'</button></td></tr>'}).join('');
+  return '<div class="pcol"><div class="panel-card"><div><h2>'+T("Storage partners")+'</h2><p class="sub">'+T("Owner view. Only you see this.")+'</p></div>'+
+   '<button type="button" class="btn sec2" data-logout="1" style="align-self:flex-start">'+T("Log out")+'</button>'+
+   (apps?'<div><h3 style="margin:0 0 8px;font-size:16px">'+T("Applications waiting")+'</h3>'+apps+'</div>':'')+
+   '<div><h3 style="margin:0 0 8px;font-size:16px">'+(f.appRef?T("Approve application"):T("Add a partner"))+'</h3></div>'+
+   '<form id="addForm" novalidate style="display:flex;flex-direction:column;gap:10px">'+
+    inp('ofName',T("Business name"),f.name,'autocomplete="off"')+
+    inp('ofType',T("Type (café, hotel, shop…)"),f.type,'autocomplete="off"')+
+    inp('ofAddr',T("Street address in Varna"),f.address,'autocomplete="off"')+
+    inp('ofArea',T("Area shown to customers before they pay"),f.area,'placeholder="near the Sea Garden" autocomplete="off"')+
+    inp('ofContact',T("Contact person"),f.contact,'autocomplete="off"')+
+    inp('ofPhone',T("Phone"),f.phone,'inputmode="tel" autocomplete="off"')+
+    inp('ofEmail',T("Email (used for their login)"),f.email,'type="email" inputmode="email" autocomplete="off"')+
+    inp('ofCap',T("How many bags can they hold at once"),f.cap,'inputmode="numeric"')+
+    '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofOpen">'+T("Opens")+'</label><input id="ofOpen" class="big" type="time" value="'+esc(f.opens||'09:00')+'"></div><div style="flex:1"><label class="lab2" for="ofClose">'+T("Closes")+'</label><input id="ofClose" class="big" type="time" value="'+esc(f.closes||'20:00')+'"></div></div>'+
+    '<div><span class="lab2">'+T("Open on")+'</span><div>'+days+'</div><p class="note" style="margin:4px 0 0">'+T("For open around the clock, set 00:00 to 24:00.")+'</p></div>'+
+    inp('ofCoords',T("Coordinates (only if the address is not found)"),f.coords,'placeholder="43.2051, 27.9102" autocomplete="off"')+
+    '<p class="note" style="margin:0">'+T("In Google Maps press and hold on the door, then copy the two numbers at the top and paste them here.")+'</p>'+
+    inp('ofDesc',T("One-line description for customers (optional)"),f.desc,'autocomplete="off"')+
+    '<button type="submit" class="btn" id="ofSave">'+T("Add partner and send welcome email")+'</button></form>'+msg+
+   '</div>'+
+   (list?'<div class="panel-card"><h3 style="margin:0;font-size:16px">'+T("All partners")+'</h3><div class="tscroll"><table class="tiers"><thead><tr><th scope="col">'+T("Partner")+'</th><th scope="col">'+T("Login email")+'</th><th scope="col">'+T("Status")+'</th><th scope="col"></th></tr></thead><tbody>'+list+'</tbody></table></div></div>':'')+'</div>';
+}
+function readAddForm(){
+  var d=[];for(var i=0;i<7;i++)if($('#od'+i)&&$('#od'+i).checked)d.push(i);
+  return {appRef:(pv.addForm||{}).appRef||'',name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.trim(),email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
+}
+function addErr(j){
+  var m={invalid:T("Check the details: name, address, area, email, capacity and opening hours."),geocode_failed:T("The address was not found. Paste the coordinates from Google Maps."),outside_varna:T("These coordinates are outside Varna."),email_taken:T("This email already belongs to another partner."),not_logged_in:T("Please log in again.")};
+  return m[j&&j.error]||T("Something went wrong. Please try again.");
+}
 function ownerView(){
   if(!pv.ownerIn)return ownerLogin();
+  if(pv.ownSub==='partners')return ownerSubnav()+ownerPartnersView();
   var key=pv.month||NOWK,T0={bags:0,rev:0,fees:0,payout:0,keep:0};
-  var rowsH=LOCS.map(function(l){
+  var rowsH=(pv.ownPartners||[]).map(function(l){
     var x=(pv.ownStats||{})[l.id+'|'+key]||{bags:0,revCents:0,bookings:0},t={bags:x.bags,rev:x.revCents/100};
     t.fees=x.bookings*0.25+t.rev*0.015;t.payout=x.bags*EARN;t.keep=t.rev-t.payout-t.fees;
     var st=key===NOWK?'open':((pv.ownPay||{})[l.id+'|'+key]==='paid'?'paid':(x.bags>0?'ready':'none'));
     ['bags','rev','fees','payout','keep'].forEach(function(k){T0[k]+=t[k]});
     return '<tr><th scope="row">'+esc(l.name)+'</th><td>'+t.bags+'</td><td>'+fmt.format(t.payout)+'</td><td>'+fmt.format(t.rev)+'</td><td>'+fmt.format(t.fees)+'</td><td>'+fmt.format(t.keep)+'</td><td>'+(st==='ready'?'<button type="button" class="btn sec2" data-pay="'+l.id+("\" style=\"min-height:36px;padding:4px 10px\">"+T("Mark as paid")+"</button>"):T(payLabel(st)))+'</td></tr>'}).join('');
-  return ("<div class=\"pcol\">"+"<div class=\"panel-card\">"+"<div>"+"<h2>"+T("Partner earnings")+"</h2>"+"<p class=\"sub\">"+T("Owner view. Only you see this.")+"</p>"+"</div>")+
+  return ownerSubnav()+("<div class=\"pcol\">"+"<div class=\"panel-card\">"+"<div>"+"<h2>"+T("Partner earnings")+"</h2>"+"<p class=\"sub\">"+T("Owner view. Only you see this.")+"</p>"+"</div>")+
    ("<button type=\"button\" class=\"btn sec2\" data-logout=\"1\" style=\"align-self:flex-start\">"+T("Log out")+"</button>")+
    ("<div>"+"<label class=\"lab2\" for=\"pvMonth\">"+T("Month")+"</label>"+"<select id=\"pvMonth\" class=\"big\">")+monthOpts(key)+'</select></div>'+
    ("<div class=\"tscroll\">"+"<table class=\"tiers\">"+"<thead>"+"<tr>"+"<th scope=\"col\">"+T("Partner")+"</th>"+"<th scope=\"col\">"+T("Bags")+"</th>"+"<th scope=\"col\">"+T("Partner payout")+"</th>"+"<th scope=\"col\">"+T("Customer payments")+"</th>"+"<th scope=\"col\">"+T("Card fees (estimate)")+"</th>"+"<th scope=\"col\">"+T("CarryOff keeps")+"</th>"+"<th scope=\"col\">"+T("Payout status")+"</th>"+"</tr>"+"</thead>"+"<tbody>")+rowsH+
@@ -3268,12 +3306,18 @@ function loadPartner(cb){api('/api/partner/bookings').then(function(j){
   if(!j||!j.ok){if(j&&j.status===401){pv.me=null;if(!pa.hidden)renderPartner()}if(cb)cb();return}
   bookings.length=0;
   j.bookings.forEach(function(r){bookings.push({ref:r.ref,loc:j.partner.id,name:r.name,cnt:r.cnt,dDate:r.dDate,dTime:r.dTime,pDate:r.pDate,pTime:r.pTime,status:r.status,n:r.n,tags:r.tags||[],at:r.at||'',photo:r.photo||'',total:r.totalCents/100})});
-  var l=byId(j.partner.id);if(l)l.paused=j.partner.paused;
+  var l=byId(j.partner.id);if(l){l.paused=j.partner.paused;l.name=j.partner.name}
   pv.payouts={};j.payouts.forEach(function(x){pv.payouts[x.month]=x.status});
   if(!pa.hidden&&!pv.flow)renderPartner();
   if(cb)cb();
 })}
-function loadOwner(){api('/api/owner/summary').then(function(j){
+function loadOwnerPartners(){api('/api/owner/partners').then(function(j){
+  if(!j||!j.ok)return;
+  pv.ownPartners=j.partners;pv.ownApps=j.applications;
+  j.partners.forEach(function(p){var l=byId(p.id);if(l)l.name=p.name});
+  if(!pa.hidden&&pv.ownerIn&&pv.tab==='owner')renderPartner();
+})}
+function loadOwner(){loadOwnerPartners();api('/api/owner/summary').then(function(j){
   if(!j||!j.ok)return;
   pv.ownStats={};j.stats.forEach(function(x){pv.ownStats[x.partner+'|'+x.month]=x});
   pv.ownPay={};j.payouts.forEach(function(x){pv.ownPay[x.partner_id+'|'+x.month]=x.status});
@@ -3380,6 +3424,10 @@ pa.addEventListener('click',function(e){
   if(f){var b=bookingByRef(f.getAttribute('data-ref'));if(b)openFlow(b);return}
   if(e.target.closest('[data-flow-close]')){pv.flow=null;pv.photoTmp='';renderPartner();return}
   var rf=e.target.closest('[data-refuse]');if(rf)doRefuse(rf);   var pb=e.target.closest('[data-pay]');if(pb){pb.disabled=true;api('/api/owner/payout',{partner:pb.getAttribute('data-pay'),month:(pv.month||NOWK)}).then(function(j){if(j.ok)loadOwner();else{pb.disabled=false;pb.textContent=T("Try again")}});return}   if(e.target.closest('[data-osend]')){var oe=document.getElementById('ownEmail').value.trim().toLowerCase();pv.ownEmail=oe;pv.ownErr=false;api('/api/auth/owner/send',{email:oe}).then(function(j){if(j.ok)pv.ownStep=2;else pv.ownErr=apiMsg(j);renderPartner()});return}
+   var os=e.target.closest('[data-osub]');if(os){pv.ownSub=os.getAttribute('data-osub');renderPartner();return}
+   var ua=e.target.closest('[data-useapp]');if(ua){var a=pv.ownApps[+ua.getAttribute('data-useapp')];pv.addForm={appRef:a.ref,name:a.name,type:a.type,address:a.address,contact:a.contact,phone:a.phone,email:a.email,cap:String((a.cap_pack||0)+(a.cap_med||0)+(a.cap_large||0)),opens:a.opens,closes:a.closes,days:a.days};pv.addMsg=null;renderPartner();window.scrollTo(0,0);return}
+   var ra=e.target.closest('[data-rejectapp]');if(ra){api('/api/owner/partners',{action:'reject',ref:ra.getAttribute('data-rejectapp')}).then(function(){loadOwnerPartners()});return}
+   var pc=e.target.closest('[data-pact]');if(pc){pc.disabled=true;api('/api/owner/partners',{action:'set_active',id:pc.getAttribute('data-pact'),active:pc.getAttribute('data-on')==='1'}).then(function(){loadOwnerPartners()});return}
    if(e.target.closest('[data-oback]')){pv.ownStep=1;pv.ownErr=false;renderPartner();return}
    if(e.target.closest('[data-overify]')){pv.ownErr=false;api('/api/auth/owner/verify',{email:pv.ownEmail,code:document.getElementById('ownCode').value.trim()}).then(function(j){if(j.ok){pv.ownStep=3;pv.ownSetup=j.next==='setup'?{uri:j.uri,secret:j.secret}:null}else pv.ownErr=apiMsg(j);renderPartner()});return}
    if(e.target.closest('[data-ototp]')){pv.ownErr=false;api('/api/auth/owner/totp',{code:document.getElementById('ownTotp').value.trim()}).then(function(j){if(j.ok){pv.ownerIn=true;pv.ownStep=1;pv.ownSetup=null;loadOwner()}else pv.ownErr=apiMsg(j);renderPartner()});return}
@@ -3396,7 +3444,23 @@ pa.addEventListener('submit',function(e){
   else if(e.target.id==='inForm')doCheckIn();
   else if(e.target.id==='outForm')doCheckOut();
   else if(e.target.id==='psForm')submitApp();
+  else if(e.target.id==='addForm'){
+    var f=readAddForm(),btn=$('#ofSave');pv.addForm=f;btn.disabled=true;
+    api('/api/owner/partners',f).then(function(j){
+      btn.disabled=false;
+      if(j&&j.ok){
+        pv.addForm=null;
+        pv.addMsg={ok:true,t:esc(f.name)+': '+T("added. The welcome email was sent.")+(j.mailed?'':' '+T("The email could not be sent, tell them to log in with this address."))+' <a href="https://www.google.com/maps/search/?api=1&query='+j.partner.lat+','+j.partner.lng+'" target="_blank" rel="noopener">'+T("Check the location on the map")+'</a>'};
+        loadOwnerPartners();applyPlacesNow();renderPartner();window.scrollTo(0,0);
+      }else{pv.addMsg={ok:false,t:esc(addErr(j))};renderPartner()}
+    });
+  }
 });
+function applyPlacesNow(){api('/api/partners').then(function(r){if(r&&r.ok){
+  applyPlaces(r,true);
+  Object.keys(markers).forEach(function(id){if(!byId(id)){lmap.removeLayer(markers[id]);if(haloEls[id]&&haloEls[id].remove)haloEls[id].remove();delete markers[id];delete pinEls[id];delete haloEls[id]}});
+  LOCS.forEach(function(l){if(!markers[l.id])mkPin(l)});refresh(false);
+}})}
 pa.addEventListener('change',function(e){
   if(e.target.id==='inPhoto'){handlePhoto(e.target.files&&e.target.files[0])}
   else if(e.target.id==='pvMonth'){pv.month=e.target.value;renderPartner()}   else if(e.target.id==='pvLoc'){pv.loc=e.target.value;pv.note=null;pv.hl=null;renderPartner()}
@@ -3451,7 +3515,7 @@ function setLang(code){
 var initLang='';try{initLang=localStorage.getItem('carryoff-lang')||''}catch(e){}
 if(!initLang){var nl=String(navigator.language||'en').toLowerCase().slice(0,2);if(nl==='no'||nl==='nn')nl='nb';initLang=nl}
 if(!LANGS.some(function(x){return x[0]===initLang}))initLang='en';
-readTimes();refresh(true);fitAll();updatePins();
+function startUp(){readTimes();refresh(true);fitAll();updatePins();restoreSession();handleReturn()}
 /* ---------- coming back from Stripe (or opening the link in the email) ---------- */
 function showNotice(t){
   var n=document.getElementById('notice');
@@ -3462,6 +3526,7 @@ function showBooking(j,k){
   var l=byId(j.partner);if(!l){showNotice(T("We could not open this booking."));return}
   var cnt=j.items,n=cnt.pack+cnt.med+cnt.large;
   var snap={ref:j.ref,loc:l.id,name:j.name,phone:j.phone,bags:n,n:n,status:j.status,tags:j.tags||[],photo:j.photo||'',at:hm(j.storedAt),cnt:cnt,items:itemsStr(cnt),total:j.totalCents/100,dDate:j.date,dTime:j.dropTime,pDate:j.date,pTime:j.pickTime,days:[j.date],k:k||j.k};
+  if(j.place){l.name=j.place.name||'';l.addr=j.place.address||'';if(j.place.lat!=null&&j.place.lng!=null)l.ex=proj(j.place.lat,j.place.lng)}
   state.paid[l.id]=true;
   state.last=snap;state.sel=l.id;state.view='done';updatePins();renderPanel(true);
 }
@@ -3490,7 +3555,11 @@ function handleReturn(){
   })();
   }
 }
-handleReturn();
+api('/api/partners').then(function(j){
+  if(j&&j.ok){applyPlaces(j,true);LOCS.forEach(mkPin)}else state.placesFailed=true;
+  startUp();
+  setInterval(function(){if(document.hidden)return;api('/api/partners').then(function(r){if(r&&r.ok){applyPlaces(r,false);refresh(false)}})},60000);
+});
 
 setLang(initLang);
 

@@ -61,3 +61,10 @@ Going live later: swap in the live `sk_live_...` key and a live-mode webhook sec
 2. Deploy (push to main). No new Cloudflare variables are needed.
 3. Test: book with the Stripe test card, log in as the partner, scan or type the code, tag the bags, take a photo, hand back. Refusing bags refunds the customer in Stripe automatically.
 Bookings paid before stage 3 have no stored payment reference: refund those by hand in Stripe if a partner refuses them.
+
+## Stage 4: real partners
+
+1. Run `supabase/stage4.sql` once in the Supabase SQL editor (adds hours, capacity, area and the approximate map pin to partners, and fills them in for the ten sample places).
+2. Deploy. The map, list and booking page now load places from the database. Checkout now also enforces opening hours and capacity.
+3. Add real partners in the site: For partners > Owner > Partners > Add a partner. The partner gets a welcome email with login steps.
+4. When real partners are in, switch the samples off: Owner > Partners > Switch off (or run `update partners set active=false where email like '%@partner.invalid';`).

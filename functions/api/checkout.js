@@ -1,3 +1,4 @@
+import { bookedBags, openFor } from '../_shared/capacity.js';
 import { db, eq } from '../_shared/db.js';
 import { bookToken } from '../_shared/booktoken.js';
 import { LONG_AFTER_MIN, minOf, nowInVarna, priceCents, validDate, validTime } from '../_shared/pricing.js';
@@ -38,6 +39,9 @@ export const onRequestPost = handler(async ({ request, env }) => {
 
   const partner = (await db.select(env, 'partners', { filters: { id: eq(String(b.partner || '')), active: eq('true') }, limit: 1 }))[0];
   if (!partner || partner.paused) throw new HttpError(409, 'partner_unavailable');
+  if (!openFor(partner.hours, drop.date, drop.time, pick.time)) throw new HttpError(409, 'closed');
+  const held = (await bookedBags(env, { from: drop.date, partnerId: partner.id }))[`${partner.id}|${drop.date}`] || 0;
+  if (held + bags > (partner.cap ?? 20)) throw new HttpError(409, 'full');
 
   // Slow down abuse: at most 6 unpaid bookings per email per hour.
   const hourAgo = new Date(Date.now() - 3600e3).toISOString();
