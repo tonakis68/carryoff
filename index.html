@@ -45,7 +45,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);
 button,input,select{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-block:4px 16px}
-.brand{display:flex;align-items:center;gap:16px}
+.brand{display:flex;align-items:center;gap:16px;color:inherit;text-decoration:none;cursor:pointer}
+.brand:focus-visible{outline:3px solid var(--accent);outline-offset:4px;border-radius:12px}
 .brand b{font:700 52px/1 var(--f-head);letter-spacing:-.04em}
 .brand small{display:block;font-size:14px;color:var(--ink-2);margin-top:6px}
 .mark{width:36px;height:36px;border-radius:10px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
@@ -268,7 +269,7 @@ ol.steps{margin:0;padding-left:20px;display:grid;gap:8px;font-size:14px}
 
 <div class="wrap">
   <header class="top">
-    <div class="brand">
+    <a class="brand" href="https://carryoff.eu/" aria-label="CarryOff, home">
       <svg viewBox="0 0 64 64" width="88" height="88" role="img" aria-label="CarryOff logo" style="flex:none">
         <rect width="64" height="64" rx="16" style="fill:var(--accent)"/>
         <g transform="translate(0,-3)">
@@ -280,7 +281,7 @@ ol.steps{margin:0;padding-left:20px;display:grid;gap:8px;font-size:14px}
         </g>
       </svg>
       <div><b>Carry<span style="color:var(--accent)">Off</span></b><small>Luggage storage in Varna</small></div>
-    </div>
+    </a>
     <nav class="nav" aria-label="Sections"><button type="button" data-v="book" aria-current="true">Book storage</button><button type="button" data-v="partners" aria-current="false">For partners</button></nav>
     <span class="demo">Prototype · sample storage points</span>
     <select id="lang" class="lang" aria-label="Language"></select>
