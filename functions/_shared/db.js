@@ -40,6 +40,7 @@ export const db = {
   insert: (env, table, row) => call(env, 'POST', table, row, { prefer: 'return=representation' }),
   update: (env, table, filters, patch) =>
     call(env, 'PATCH', `${table}?${qs({ filters, select: '*' })}`, patch, { prefer: 'return=representation' }),
+  remove: (env, table, filters) => call(env, 'DELETE', `${table}?${qs({ filters, select: '*' })}`, undefined, { prefer: 'return=representation' }),
   upsert: (env, table, row, onConflict) =>
     call(env, 'POST', `${table}?on_conflict=${onConflict}`, row, {
       prefer: 'return=representation,resolution=merge-duplicates',

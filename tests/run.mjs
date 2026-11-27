@@ -92,6 +92,7 @@ globalThis.fetch = async (url, init = {}) => {
     t.push(row); return new Response(JSON.stringify([row]), { status: 201 });
   }
   if (init.method === 'PATCH') { rows.forEach((r) => Object.assign(r, JSON.parse(init.body))); return new Response(JSON.stringify(rows)); }
+  if (init.method === 'DELETE') { rows.forEach((r) => t.splice(t.indexOf(r), 1)); return new Response(JSON.stringify(rows)); }
   throw new Error('fake: method');
 };
 
@@ -460,6 +461,15 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
     const { openFor } = await import('../functions/_shared/capacity.js'); const tue = '2030-01-01';
     assert.equal(openFor(row.hours, tue, '12:00', '15:00'), true); assert.equal(openFor(row.hours, tue, '13:00', '15:00'), false); assert.equal(openFor(row.hours, tue, '09:00', '12:30'), false); assert.equal(openFor(row.hours, tue, '13:30', '15:00'), true);
     ok('no drop-off or pick-up during the lunch break'); }
+  { const row = tables.partners.find((p) => p.email === 'lunch@example.com'); const before = JSON.stringify(row.hours);
+    let r = await add({ ...base, action: 'update', id: row.id, name: 'Lunch Shop 2', email: 'lunch@example.com', cap: 9 }); assert.equal(r.status, 200);
+    assert.equal(row.name, 'Lunch Shop 2'); assert.equal(row.cap, 9); assert.equal(JSON.stringify(row.hours), before); ok('owner can edit a partner; hours stay unless changed');
+    const lat0 = row.lat; await add({ ...base, action: 'update', id: row.id, email: 'lunch@example.com', coords: '43.2300, 27.9300', hoursChanged: true, opens: '10:00', closes: '16:00', days: [2] });
+    assert.equal(row.lat, 43.23); assert.notEqual(row.lat, lat0); assert.deepEqual(row.hours[2], ['10:00', '16:00']); assert.equal(row.hours[3], null); assert.ok(row.pub_lat && row.pub_lat !== row.lat); ok('editing the pin and hours updates the position and the days');
+    r = await add({ ...base, action: 'update', id: row.id, email: tables.partners.find((p) => p.id === 'aurora').email }); assert.equal(r.status, 409); ok('editing to another partner\'s email is refused');
+    tables.bookings.push({ id: 9999, ref: 'CO-DELT1', partner_id: row.id, status: 'booked' });
+    r = await add({ action: 'delete', id: row.id }); assert.equal(r.status, 409); ok('a partner with bookings cannot be removed'); tables.bookings.splice(tables.bookings.findIndex((x) => x.id === 9999), 1);
+    r = await add({ action: 'delete', id: row.id }); assert.equal(r.status, 200); assert.ok(!tables.partners.find((p) => p.id === row.id)); ok('a partner without bookings can be removed'); }
   assert.equal((await add({ ...base, coords: 'not a pin' })).status, 422); ok('unreadable pin is refused');
   { const r = await add({ ...base, name: 'No Address Shop', email: 'noaddr@example.com', address: '', coords: 'https://www.google.com/maps/place/X/@43.2150,27.9100,17z' }); assert.equal(r.status, 201); ok('address is optional when a pin is pasted'); }
   geoResult = [{ lat: '43.2051', lon: '27.9102' }]; outbox.length = 0;

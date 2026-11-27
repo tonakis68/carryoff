@@ -3239,15 +3239,15 @@ function ownerPartnersView(){
   var apps=(pv.ownApps||[]).map(function(a,i){
     return '<div class="panel-card" style="padding:12px"><strong>'+esc(a.name)+'</strong> · '+esc(a.type||'')+'<br><span class="note">'+esc(a.address)+'<br>'+esc(a.contact)+' · '+esc(a.phone)+' · '+esc(a.email)+'</span><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" data-useapp="'+i+'" style="min-height:40px">'+T("Use these details")+'</button><button type="button" class="btn sec2" data-rejectapp="'+esc(a.ref)+'" style="min-height:40px">'+T("Reject")+'</button></div></div>'}).join('');
   var list=(pv.ownPartners||[]).map(function(p){
-    return '<tr><th scope="row">'+esc(p.name)+'<br><span class="note">'+esc(p.area||'')+'</span></th><td>'+esc(p.email)+'</td><td>'+(p.active?(p.paused?T("Paused"):T("Live")):T("Off"))+'</td><td><button type="button" class="btn sec2" data-pact="'+esc(p.id)+'" data-on="'+(p.active?'0':'1')+'" style="min-height:36px;padding:4px 10px">'+(p.active?T("Switch off"):T("Switch on"))+'</button></td></tr>'}).join('');
+    return '<tr><th scope="row">'+esc(p.name)+'<br><span class="note">'+esc(p.area||'')+'</span></th><td>'+esc(p.email)+'</td><td>'+(p.active?(p.paused?T("Paused"):T("Live")):T("Off"))+'</td><td><button type="button" class="btn sec2" data-pact="'+esc(p.id)+'" data-on="'+(p.active?'0':'1')+'" style="min-height:36px;padding:4px 10px">'+(p.active?T("Switch off"):T("Switch on"))+'</button>'+'<button type="button" class="btn sec2" data-pedit="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px;margin-left:6px">'+T("Edit")+'</button>'+(pv.delAsk===p.id?'<button type="button" class="btn" data-pdel="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px;margin-left:6px;background:var(--bad);color:#fff">'+T("Tap again to remove for good")+'</button>':'<button type="button" class="btn sec2" data-pdel="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px;margin-left:6px">'+T("Remove")+'</button>')+'</td></tr>'}).join('');
   return '<div class="pcol"><div class="panel-card"><div><h2>'+T("Storage partners")+'</h2><p class="sub">'+T("Owner view. Only you see this.")+'</p></div>'+
    '<button type="button" class="btn sec2" data-logout="1" style="align-self:flex-start">'+T("Log out")+'</button>'+
    (apps?'<div><h3 style="margin:0 0 8px;font-size:16px">'+T("Applications waiting")+'</h3>'+apps+'</div>':'')+
-   '<div><h3 style="margin:0 0 8px;font-size:16px">'+(f.appRef?T("Approve application"):T("Add a partner"))+'</h3></div>'+
+   '<div><h3 style="margin:0 0 8px;font-size:16px">'+(f.editId?T("Edit partner")+': '+esc(f.editName||''):f.appRef?T("Approve application"):T("Add a partner"))+'</h3>'+(f.editId&&f.mixed?'<p class="note" style="margin:0">'+T("This partner has different hours on different days. They stay as they are unless you change the hours below.")+'</p>':'')+'</div>'+
    '<form id="addForm" novalidate style="display:flex;flex-direction:column;gap:10px">'+
     inp('ofName',T("Business name")+' *',f.name,'autocomplete="off"')+
     inp('ofType',T("Type (café, hotel, shop…) (optional)"),f.type,'autocomplete="off"')+
-    inp('ofCoords',T("Google Maps pin")+' *',f.coords,'placeholder="https://maps.app.goo.gl/…" autocomplete="off" autocapitalize="off" spellcheck="false"')+
+    inp('ofCoords',T("Google Maps pin")+(f.editId?' ('+T("leave empty to keep the current pin")+')':' *'),f.coords,'placeholder="https://maps.app.goo.gl/…" autocomplete="off" autocapitalize="off" spellcheck="false"')+
     '<p class="note" style="margin:0">'+T("In Google Maps open the place, tap Share, copy the link and paste it here. Pasting two coordinates like 43.2051, 27.9102 also works.")+'</p>'+
     inp('ofAddr',T("Street address in Varna (optional)"),f.address,'autocomplete="off"')+
     inp('ofArea',T("Area shown to customers before they pay")+' *',f.area,'placeholder="near the Sea Garden" autocomplete="off"')+
@@ -3259,13 +3259,13 @@ function ownerPartnersView(){
     '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofBFrom">'+T("Lunch break from (optional)")+'</label><input id="ofBFrom" class="big" type="time" value="'+esc(f.bfrom||'')+'"></div><div style="flex:1"><label class="lab2" for="ofBTo">'+T("Lunch break to")+'</label><input id="ofBTo" class="big" type="time" value="'+esc(f.bto||'')+'"></div></div>'+
     '<div><span class="lab2">'+T("Open on")+' *</span><div id="odGroup">'+days+'</div><p class="note" style="margin:4px 0 0">'+T("For open around the clock, set 00:00 to 24:00.")+'</p></div>'+
     inp('ofDesc',T("One-line description for customers (optional)"),f.desc,'autocomplete="off"')+
-    '<p class="note" id="reqNote" style="margin:0">* '+T("required")+'</p><button type="submit" class="btn" id="ofSave">'+T("Add partner and send welcome email")+'</button></form>'+msg+
+    '<p class="note" id="reqNote" style="margin:0">* '+T("required")+'</p><button type="submit" class="btn" id="ofSave">'+(f.editId?T("Save changes"):T("Add partner and send welcome email"))+'</button>'+(f.editId?'<button type="button" class="btn sec2" data-canceledit="1">'+T("Cancel")+'</button>':'')+'</form>'+msg+
    '</div>'+
    (list?'<div class="panel-card"><h3 style="margin:0;font-size:16px">'+T("All partners")+'</h3><div class="tscroll"><table class="tiers"><thead><tr><th scope="col">'+T("Partner")+'</th><th scope="col">'+T("Login email")+'</th><th scope="col">'+T("Status")+'</th><th scope="col"></th></tr></thead><tbody>'+list+'</tbody></table></div></div>':'')+'</div>';
 }
 function readAddForm(){
   var d=[];for(var i=0;i<7;i++)if($('#od'+i)&&$('#od'+i).checked)d.push(i);
-  return {appRef:(pv.addForm||{}).appRef||'',name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.trim(),email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,bfrom:$('#ofBFrom').value,bto:$('#ofBTo').value,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
+  return {appRef:(pv.addForm||{}).appRef||'',editId:(pv.addForm||{}).editId||'',editName:(pv.addForm||{}).editName||'',mixed:(pv.addForm||{}).mixed||false,hoursChanged:(pv.addForm||{}).hoursChanged||false,name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.trim(),email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,bfrom:$('#ofBFrom').value,bto:$('#ofBTo').value,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
 }
 function checkAddForm(f){
   var miss=[];
@@ -3274,7 +3274,7 @@ function checkAddForm(f){
   function lab(id){return document.querySelector('#addForm label[for="'+id+'"]')}
   function need(id,ok){if(!ok)miss.push({el:$('#'+id),lab:lab(id)})}
   need('ofName',f.name.length>=2);
-  need('ofCoords',f.coords.length>=5);
+  need('ofCoords',f.editId?(!f.coords||f.coords.length>=5):f.coords.length>=5);
   need('ofArea',f.area.length>=3);
   need('ofPhone',f.phone.replace(/\D/g,'').length>=6);
   need('ofEmail',/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email));
@@ -3287,7 +3287,7 @@ function checkAddForm(f){
   return miss;
 }
 function addErr(j){
-  var m={invalid:T("Check the fields marked * : name, pin, area, phone, email, capacity, opening hours and days."),geocode_failed:T("No location found. Paste the Google Maps pin (Share link) of the place."),pin_unreadable:T("That pin could not be read. In Google Maps tap Share, copy the link and paste it here."),outside_varna:T("These coordinates are outside Varna."),email_taken:T("This email already belongs to another partner."),not_logged_in:T("Please log in again.")};
+  var m={invalid:T("Check the fields marked * : name, pin, area, phone, email, capacity, opening hours and days."),geocode_failed:T("No location found. Paste the Google Maps pin (Share link) of the place."),pin_unreadable:T("That pin could not be read. In Google Maps tap Share, copy the link and paste it here."),outside_varna:T("These coordinates are outside Varna."),email_taken:T("This email already belongs to another partner."),has_history:T("This partner has bookings or payouts, so it can’t be removed. Use Switch off instead."),not_logged_in:T("Please log in again.")};
   return m[j&&j.error]||T("Something went wrong. Please try again.");
 }
 function ownerView(){
@@ -3451,6 +3451,18 @@ pa.addEventListener('click',function(e){
    var os=e.target.closest('[data-osub]');if(os){pv.ownSub=os.getAttribute('data-osub');renderPartner();return}
    var ua=e.target.closest('[data-useapp]');if(ua){var a=pv.ownApps[+ua.getAttribute('data-useapp')];pv.addForm={appRef:a.ref,name:a.name,type:a.type,address:a.address,contact:a.contact,phone:a.phone,email:a.email,cap:String((a.cap_pack||0)+(a.cap_med||0)+(a.cap_large||0)),opens:a.opens,closes:a.closes,days:a.days};pv.addMsg=null;renderPartner();window.scrollTo(0,0);return}
    var ra=e.target.closest('[data-rejectapp]');if(ra){api('/api/owner/partners',{action:'reject',ref:ra.getAttribute('data-rejectapp')}).then(function(){loadOwnerPartners()});return}
+   var pe=e.target.closest('[data-pedit]');if(pe){var pp=(pv.ownPartners||[]).filter(function(x){return x.id===pe.getAttribute('data-pedit')})[0];if(pp){
+     var hs=pp.hours||[],first=null,days=[];hs.forEach(function(h,i){if(h){days.push(i);if(!first)first=h}});
+     var mixed=hs.some(function(h){return h&&JSON.stringify(h)!==JSON.stringify(first)});
+     pv.addForm={editId:pp.id,editName:pp.name,mixed:mixed,hoursChanged:false,name:pp.name,type:pp.type||'',address:pp.address||'',area:pp.area||'',contact:pp.contact||'',phone:pp.phone||'',email:pp.email||'',cap:String(pp.cap||''),opens:first?first[0]:'09:00',closes:first?first[1]:'20:00',bfrom:first&&first[2]||'',bto:first&&first[3]||'',days:days.length?days:[1,2,3,4,5,6],desc:pp.descr||'',coords:''};
+     pv.addMsg=null;pv.delAsk=null;renderPartner();window.scrollTo(0,0)}return}
+   if(e.target.closest('[data-canceledit]')){pv.addForm=null;pv.addMsg=null;renderPartner();return}
+   var pd=e.target.closest('[data-pdel]');if(pd){var did=pd.getAttribute('data-pdel');
+     if(pv.delAsk!==did){pv.delAsk=did;renderPartner();return}
+     pv.delAsk=null;api('/api/owner/partners',{action:'delete',id:did}).then(function(j){
+       if(j&&j.ok){pv.addMsg={ok:true,t:T("Partner removed.")};loadOwnerPartners();applyPlacesNow()}
+       else{pv.addMsg={ok:false,t:esc(j&&j.error==='has_history'?T("This partner has bookings or payouts, so it can’t be removed. Use Switch off instead."):T("Something went wrong. Please try again."))};renderPartner()}
+       window.scrollTo(0,0)});return}
    var pc=e.target.closest('[data-pact]');if(pc){pc.disabled=true;api('/api/owner/partners',{action:'set_active',id:pc.getAttribute('data-pact'),active:pc.getAttribute('data-on')==='1'}).then(function(){loadOwnerPartners()});return}
    if(e.target.closest('[data-oback]')){pv.ownStep=1;pv.ownErr=false;renderPartner();return}
    if(e.target.closest('[data-overify]')){pv.ownErr=false;api('/api/auth/owner/verify',{email:pv.ownEmail,code:document.getElementById('ownCode').value.trim()}).then(function(j){if(j.ok){pv.ownStep=3;pv.ownSetup=j.next==='setup'?{uri:j.uri,secret:j.secret}:null}else pv.ownErr=apiMsg(j);renderPartner()});return}
@@ -3479,8 +3491,10 @@ pa.addEventListener('submit',function(e){
       return;
     }
     btn.disabled=true;
-    api('/api/owner/partners',f).then(function(j){
+    var payload=f.editId?Object.assign({},f,{action:'update',id:f.editId}):f;
+    api('/api/owner/partners',payload).then(function(j){
       btn.disabled=false;
+      if(j&&j.ok&&f.editId){pv.addForm=null;pv.addMsg={ok:true,t:esc(f.name)+': '+T("changes saved.")};loadOwnerPartners();applyPlacesNow();renderPartner();window.scrollTo(0,0);return}
       if(j&&j.ok){
         pv.addForm=null;
         pv.addMsg={ok:true,t:esc(f.name)+': '+T("added. The welcome email was sent.")+(j.mailed?'':' '+T("The email could not be sent, tell them to log in with this address."))+' <a href="https://www.google.com/maps/search/?api=1&query='+j.partner.lat+','+j.partner.lng+'" target="_blank" rel="noopener">'+T("Check the location on the map")+'</a>'};
@@ -3489,8 +3503,8 @@ pa.addEventListener('submit',function(e){
     });
   }
 });
-document.addEventListener('input',function(e){var t=e.target;if(t&&t.classList&&t.classList.contains('req-bad')){t.classList.remove('req-bad');var l=document.querySelector('#addForm label[for="'+t.id+'"]');if(l)l.classList.remove('req-bad-lab')}});
-document.addEventListener('change',function(e){var g=$('#odGroup');if(g&&g.contains(e.target)&&g.classList.contains('req-bad')){g.classList.remove('req-bad');if(g.previousElementSibling)g.previousElementSibling.classList.remove('req-bad-lab')}});
+document.addEventListener('input',function(e){var t=e.target;if(t&&/^of(Open|Close|BFrom|BTo)$/.test(t.id)&&pv.addForm)pv.addForm.hoursChanged=true;if(t&&t.classList&&t.classList.contains('req-bad')){t.classList.remove('req-bad');var l=document.querySelector('#addForm label[for="'+t.id+'"]');if(l)l.classList.remove('req-bad-lab')}});
+document.addEventListener('change',function(e){if(e.target&&/^(of(Open|Close|BFrom|BTo)|od\d)$/.test(e.target.id||'')&&pv.addForm)pv.addForm.hoursChanged=true;var g=$('#odGroup');if(g&&g.contains(e.target)&&g.classList.contains('req-bad')){g.classList.remove('req-bad');if(g.previousElementSibling)g.previousElementSibling.classList.remove('req-bad-lab')}});
 function applyPlacesNow(){api('/api/partners').then(function(r){if(r&&r.ok){
   applyPlaces(r,true);
   Object.keys(markers).forEach(function(id){if(!byId(id)){lmap.removeLayer(markers[id]);if(haloEls[id]&&haloEls[id].remove)haloEls[id].remove();delete markers[id];delete pinEls[id];delete haloEls[id]}});
