@@ -2992,10 +2992,12 @@ function mineView(){
 /* ---------- phone number with country code ---------- */
 var CC=[['BG','Bulgaria','359'],['RO','Romania','40'],['GR','Greece','30'],['TR','Türkiye','90'],['RS','Serbia','381'],['MK','North Macedonia','389'],['DE','Germany','49'],['GB','United Kingdom','44'],['IE','Ireland','353'],['FR','France','33'],['ES','Spain','34'],['IT','Italy','39'],['NL','Netherlands','31'],['BE','Belgium','32'],['AT','Austria','43'],['CH','Switzerland','41'],['PL','Poland','48'],['CZ','Czechia','420'],['SK','Slovakia','421'],['HU','Hungary','36'],['HR','Croatia','385'],['SI','Slovenia','386'],['SE','Sweden','46'],['NO','Norway','47'],['DK','Denmark','45'],['FI','Finland','358'],['PT','Portugal','351'],['CY','Cyprus','357'],['UA','Ukraine','380'],['MD','Moldova','373'],['LT','Lithuania','370'],['LV','Latvia','371'],['EE','Estonia','372'],['US','United States','1'],['CA','Canada','1'],['AU','Australia','61'],['IL','Israel','972'],['AE','United Arab Emirates','971'],['IN','India','91'],['CN','China','86'],['JP','Japan','81'],['KR','South Korea','82']];
 function flagOf(cc){return String.fromCodePoint(0x1F1E6+cc.charCodeAt(0)-65,0x1F1E6+cc.charCodeAt(1)-65)}
-function phoneField(id,label,cls,err){
+function phoneField(id,label,cls,err,val){
+  var cc='359',nat='';if(val){var m=String(val).match(/^\+(\d{1,3})\s+(.*)$/);if(m&&CC.some(function(c){return String(c[2])===m[1]})){cc=m[1];nat=m[2]}else nat=String(val).replace(/^\+/,'')}
+  var selCC=CC.filter(function(c){return String(c[2])===cc})[0];
   return '<div><label'+(cls?' class="'+cls+'"':'')+' for="'+id+'">'+label+'</label><div class="ph"><select id="'+id+'c" aria-label="Country code" autocomplete="tel-country-code">'+
-    CC.map(function(c){return '<option value="'+c[2]+'"'+(c[0]==='BG'?' selected':'')+'>'+flagOf(c[0])+' +'+c[2]+' '+regionName(c[0],c[1])+'</option>'}).join('')+
-    '</select><input type="tel" id="'+id+'" inputmode="tel" autocomplete="tel-national" placeholder="88 123 4567" required aria-describedby="'+id+'E"></div>'+(err?'<div class="ferr" id="'+id+'E"></div>':'')+'</div>';
+    CC.map(function(c){return '<option value="'+c[2]+'"'+(c===selCC?' selected':'')+'>'+flagOf(c[0])+' +'+c[2]+' '+regionName(c[0],c[1])+'</option>'}).join('')+
+    '</select><input type="tel" id="'+id+'" inputmode="tel" autocomplete="tel-national" placeholder="88 123 4567" value="'+esc(nat)+'" required aria-describedby="'+id+'E"></div>'+(err?'<div class="ferr" id="'+id+'E"></div>':'')+'</div>';
 }
 function phoneOk(id){var d=$('#'+id).value.replace(/\D/g,'').replace(/^0+/,'');return d.length>=6&&d.length<=12&&/^[\d\s()\-.]+$/.test($('#'+id).value.trim())}
 function phoneVal(id){var d=$('#'+id).value.replace(/\D/g,'').replace(/^0+/,'');return '+'+$('#'+id+'c').value+' '+d}
@@ -3260,7 +3262,7 @@ function ownerPartnersView(){
     inp('ofAddr',T("Street address in Varna (optional)"),f.address,'autocomplete="off"')+
     inp('ofArea',T("Area shown to customers before they pay")+' *',f.area,'placeholder="near the Sea Garden" autocomplete="off"')+
     inp('ofContact',T("Contact person (optional)"),f.contact,'autocomplete="off"')+
-    inp('ofPhone',T("Phone")+' *',f.phone,'inputmode="tel" autocomplete="off"')+
+    phoneField('ofPhone',T("Phone")+' *','lab2',false,f.phone).replace('<select id=','<select class="big" id=').replace('<input type="tel"','<input class="big" type="tel"')+
     inp('ofEmail',T("Email (used for their login)")+' *',f.email,'type="email" inputmode="email" autocomplete="off"')+
     inp('ofCap',T("How many bags can they hold at once")+' *',f.cap,'inputmode="numeric"')+
     '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofOpen">'+T("Opens")+' *</label>'+timeSel('ofOpen',f.opens||'09:00',0)+'</div><div style="flex:1"><label class="lab2" for="ofClose">'+T("Closes")+' *</label>'+timeSel('ofClose',f.closes||'20:00',1)+'</div></div>'+
@@ -3273,7 +3275,7 @@ function ownerPartnersView(){
 }
 function readAddForm(){
   var d=[];for(var i=0;i<7;i++)if($('#od'+i)&&$('#od'+i).checked)d.push(i);
-  return {appRef:(pv.addForm||{}).appRef||'',editId:(pv.addForm||{}).editId||'',editName:(pv.addForm||{}).editName||'',mixed:(pv.addForm||{}).mixed||false,hoursChanged:(pv.addForm||{}).hoursChanged||false,name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.trim(),email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,bfrom:$('#ofBFrom').value,bto:$('#ofBTo').value,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
+  return {appRef:(pv.addForm||{}).appRef||'',editId:(pv.addForm||{}).editId||'',editName:(pv.addForm||{}).editName||'',mixed:(pv.addForm||{}).mixed||false,hoursChanged:(pv.addForm||{}).hoursChanged||false,name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.replace(/\D/g,'')?phoneVal('ofPhone'):'',email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,bfrom:$('#ofBFrom').value,bto:$('#ofBTo').value,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
 }
 function checkAddForm(f){
   var miss=[];
@@ -3284,7 +3286,7 @@ function checkAddForm(f){
   need('ofName',f.name.length>=2);
   need('ofCoords',f.editId?(!f.coords||f.coords.length>=5):f.coords.length>=5);
   need('ofArea',f.area.length>=3);
-  need('ofPhone',f.phone.replace(/\D/g,'').length>=6);
+  need('ofPhone',phoneOk('ofPhone'));
   need('ofEmail',/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email));
   var c=parseInt(f.cap,10);need('ofCap',c>=1&&c<=500);
   need('ofOpen',!!f.opens);
