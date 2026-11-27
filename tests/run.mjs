@@ -14,6 +14,12 @@ import * as checkout from '../functions/api/checkout.js';
 import * as webhook from '../functions/api/stripe-webhook.js';
 import * as bookingApi from '../functions/api/booking.js';
 import * as qrApi from '../functions/api/qr.js';
+import * as pBookings from '../functions/api/partner/bookings.js';
+import * as pAction from '../functions/api/partner/action.js';
+import * as pPause from '../functions/api/partner/pause.js';
+import * as oSummary from '../functions/api/owner/summary.js';
+import * as oPayout from '../functions/api/owner/payout.js';
+import { makeToken, cookieHeader } from '../functions/_shared/session.js';
 import { createHmac } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import { nowInVarna } from '../functions/_shared/pricing.js';
@@ -25,7 +31,8 @@ const env = {
 };
 
 // ---------- fake backends ----------
-const tables = { partners: [], partner_applications: [], login_codes: [], owner_settings: [], email_log: [], bookings: [] };
+const tables = { partners: [], partner_applications: [], login_codes: [], owner_settings: [], email_log: [], bookings: [], payouts: [] };
+let refundFails = false; const refunds = [];
 const outbox = [];
 const stripeCalls = [];
 let resendFails = false;
@@ -36,6 +43,8 @@ function matches(row, k, v) {
   if (op === 'eq') return String(x) === val;
   if (op === 'gte') return String(x) >= val;
   if (op === 'gt') return String(x) > val;
+  if (op === 'lt') return String(x) < val;
+  if (op === 'in') return val.replace(/^\(|\)$/g, '').split(',').includes(String(x));
   throw new Error('fake: unsupported op ' + op);
 }
 globalThis.fetch = async (url, init = {}) => {
@@ -44,6 +53,11 @@ globalThis.fetch = async (url, init = {}) => {
     if (resendFails) return new Response('boom', { status: 500 });
     outbox.push(JSON.parse(init.body));
     return new Response('{"id":"1"}', { status: 200 });
+  }
+  if (u.host === 'api.stripe.com' && u.pathname === '/v1/refunds') {
+    if (refundFails) return new Response('{"error":{"message":"nope"}}', { status: 400 });
+    refunds.push({ ...Object.fromEntries(new URLSearchParams(init.body)), key: init.headers['idempotency-key'] });
+    return new Response('{"id":"re_1"}', { status: 200 });
   }
   if (u.host === 'api.stripe.com') {
     assert.equal(init.headers.authorization, 'Bearer sk_test_x');
@@ -54,12 +68,19 @@ globalThis.fetch = async (url, init = {}) => {
   const t = tables[table]; if (!t) return new Response('no table', { status: 404 });
   assert.equal(init.headers.apikey, 'sb_secret_test');
   assert.equal(init.headers.authorization, undefined, 'new-style keys must not be sent as Bearer');
-  const filters = [...u.searchParams].filter(([k]) => !['select', 'order', 'limit', 'on_conflict'].includes(k));
-  let rows = t.filter((r) => filters.every(([k, v]) => matches(r, k, v)));
+  const filters = [...u.searchParams].filter(([k]) => !['select', 'order', 'limit', 'on_conflict', 'and'].includes(k));
+  const ands = (u.searchParams.get('and') || '').replace(/^\(|\)$/g, '').split(',').filter(Boolean).map((x) => { const [c, o, ...v] = x.split('.'); return [c, `${o}.${v.join('.')}`]; });
+  let rows = t.filter((r) => [...filters, ...ands].every(([k, v]) => matches(r, k, v)));
   if (init.method === 'GET') {
     if (u.searchParams.get('order')) { const [c, d] = u.searchParams.get('order').split('.'); rows = [...rows].sort((a, b) => (a[c] < b[c] ? -1 : 1) * (d === 'desc' ? -1 : 1)); }
     if (u.searchParams.get('limit')) rows = rows.slice(0, +u.searchParams.get('limit'));
     return new Response(JSON.stringify(rows));
+  }
+  if (init.method === 'POST' && u.searchParams.get('on_conflict')) {
+    const keys = u.searchParams.get('on_conflict').split(','), body = JSON.parse(init.body);
+    const ex = t.find((r) => keys.every((k) => r[k] === body[k]));
+    if (ex) { Object.assign(ex, body); return new Response(JSON.stringify([ex])); }
+    t.push({ id: idc++, ...body }); return new Response(JSON.stringify([t.at(-1)]), { status: 201 });
   }
   if (init.method === 'POST') {
     const row = { id: table === 'owner_settings' ? undefined : idc++, created_at: new Date().toISOString(), used: false, attempts: 0, totp_enabled: false, totp_fails: 0, ...JSON.parse(init.body) };
@@ -338,6 +359,74 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   body = evt('checkout.session.expired', { id: 'cs_test_2', metadata: { ref: pend.ref } });
   pend.stripe_session_id = 'cs_test_2';
   await hook(body, sign(body)); assert.equal(pend.status, 'cancelled'); ok('abandoned checkout is cancelled when Stripe says it expired');
+}
+
+
+// ---------- stage 3: partner check-in / hand-back / refusal, owner payouts ----------
+{
+  const sess = async (role, sub) => cookieHeader((await makeToken(env, role, sub)).token, 60).split(';')[0];
+  const aurora = await sess('partner', 'aurora'), mosaic = await sess('partner', 'mosaic'), owner = await sess('owner', 'owner');
+  const today = nowInVarna().date;
+  const mk = (ref, extra = {}) => { const b = { id: idc++, ref, partner_id: 'aurora', customer_name: 'Anna Lee', customer_email: `${ref.toLowerCase()}@example.com`, customer_phone: '+359 888123456', drop_date: today, drop_time: '09:00', pick_date: today, pick_time: '15:00', n_pack: 1, n_med: 1, n_large: 0, total_cents: 1000, status: 'booked', payment_intent: 'pi_' + ref, created_at: new Date().toISOString(), ...extra }; tables.bookings.push(b); return b; };
+  const get = (mod, cookie, q = '') => mod.onRequestGet({ env, request: new Request(ORIGIN + '/api/x' + q, { headers: cookie ? { cookie } : {} }) });
+  const act = (cookie, body) => post(pAction, body, cookie);
+  const photo = 'data:image/jpeg;base64,' + 'A'.repeat(200);
+  const A = mk('CO-AAAA1'), B = mk('CO-BBBB2'), F = mk('CO-FFFF3', { drop_date: '2099-01-01', pick_date: '2099-01-01' });
+
+  assert.equal((await get(pBookings)).status, 401);
+  assert.equal((await get(pBookings, cookieOf(await post(logout, {})))).status, 401);
+  let j = await (await get(pBookings, aurora)).json();
+  const a1 = j.bookings.find((x) => x.ref === 'CO-AAAA1');
+  assert.equal(a1.name, 'Anna'); assert.ok(!JSON.stringify(j).includes('@example.com') && !JSON.stringify(j).includes('+359'));
+  assert.ok(['CO-AAAA1', 'CO-BBBB2', 'CO-FFFF3'].every((r) => j.bookings.some((x) => x.ref === r)));
+  ok('partner sees only first name, bags and times; no email or phone');
+  assert.equal((await get(pBookings, mosaic).then((r) => r.json())).bookings.length, 0); ok('a partner never sees another partner\'s bookings');
+
+  assert.equal((await act(mosaic, { ref: 'CO-AAAA1', action: 'checkin', tags: ['1', '2'], photo })).status, 404); ok('another partner cannot act on the booking');
+  assert.equal((await act(aurora, { ref: 'CO-AAAA1', action: 'checkin', tags: ['1'], photo })).status, 400);
+  assert.equal((await act(aurora, { ref: 'CO-AAAA1', action: 'checkin', tags: ['7', '7'], photo })).status, 400);
+  assert.equal((await act(aurora, { ref: 'CO-AAAA1', action: 'checkin', tags: ['7', '8'], photo: 'data:text/html;base64,AAAA' })).status, 400);
+  assert.equal((await act(aurora, { ref: 'CO-FFFF3', action: 'checkin', tags: ['7', '8'], photo })).status, 409); ok('check-in needs one unique tag per bag, a JPEG photo and the booking day');
+  assert.equal((await post(pAction, { ref: 'CO-AAAA1', action: 'checkin', tags: ['7', '8'], photo })).status, 401);
+  outbox.length = 0;
+  let r = await act(aurora, { ref: 'CO-AAAA1', action: 'checkin', tags: ['7', '8'], photo });
+  assert.equal(r.status, 200); assert.equal(A.status, 'stored'); assert.deepEqual(A.tags, ['7', '8']); assert.equal(A.photo_data, photo);
+  assert.match(outbox.at(-1).subject, /stored/i); assert.ok(JSON.stringify(outbox.at(-1).to).includes("co-aaaa1@example.com"));
+  assert.equal((await act(aurora, { ref: 'CO-AAAA1', action: 'checkin', tags: ['7', '8'], photo })).status, 409); assert.equal(outbox.length, 1);
+  ok('bags received: stored with tags and photo, customer emailed once; a second tap does nothing');
+  j = await (await get(bookingApi, null, `?ref=CO-AAAA1&email=co-aaaa1@example.com`)).json();
+  assert.equal(j.status, 'stored'); assert.equal(j.photo, photo); assert.deepEqual(j.tags, ['7', '8']); ok('customer sees status, tags and photo');
+
+  r = await act(aurora, { ref: 'CO-AAAA1', action: 'return' });
+  assert.equal(A.status, 'returned'); assert.equal(A.photo_data, null); assert.match(outbox.at(-1).subject, /handed back/i);
+  assert.equal((await act(aurora, { ref: 'CO-AAAA1', action: 'return' })).status, 409); ok('bags handed back: status updated, photo deleted, customer thanked');
+
+  refundFails = true; r = await act(aurora, { ref: 'CO-BBBB2', action: 'refuse' });
+  assert.equal(r.status, 502); assert.equal(B.status, 'booked'); refundFails = false; ok('if the refund fails nothing changes and the partner can retry');
+  outbox.length = 0; r = await act(aurora, { ref: 'CO-BBBB2', action: 'refuse' });
+  assert.equal(B.status, 'refused'); assert.equal(refunds.length, 1); assert.equal(refunds[0].payment_intent, 'pi_CO-BBBB2'); assert.equal(refunds[0].key, 'refund-CO-BBBB2');
+  assert.match(outbox.at(-1).subject, /could not be stored/i); assert.ok(B.refunded_at); ok('refusing bags refunds the payment in full and tells the customer');
+  assert.equal((await act(aurora, { ref: 'CO-BBBB2', action: 'refuse' })).status, 409); assert.equal(refunds.length, 1); ok('a refused booking cannot be refunded twice');
+
+  const paused = await (await post(pPause, { paused: true }, aurora)).json(); assert.equal(paused.paused, true);
+  assert.equal(tables.partners.find((x) => x.id === 'aurora').paused, true); await post(pPause, { paused: false }, aurora); ok('partner can pause and reopen new bookings');
+  assert.equal((await post(pPause, { paused: true })).status, 401);
+
+  // owner
+  const month = nowInVarna().date.slice(0, 7);
+  const last = (() => { const [y, m] = month.split('-').map(Number); return new Date(Date.UTC(y, m - 2, 15)).toISOString().slice(0, 10); })();
+  mk('CO-LAST1', { drop_date: last, pick_date: last, status: 'returned', n_pack: 2, n_med: 1, total_cents: 1500 });
+  mk('CO-LAST2', { drop_date: last, pick_date: last, status: 'refused', total_cents: 900 });
+  assert.equal((await get(oSummary, aurora)).status, 401); assert.equal((await get(oSummary)).status, 401);
+  j = await (await get(oSummary, owner)).json();
+  const st = j.stats.find((x) => x.partner === 'aurora' && x.month === last.slice(0, 7));
+  assert.equal(st.bags, 3); assert.equal(st.revCents, 1500); ok('owner sees bags and customer payments per partner and month; refused bookings do not count');
+  assert.equal((await post(oPayout, { partner: 'aurora', month }, owner)).status, 400); ok('the running month cannot be paid out');
+  assert.equal((await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, aurora)).status, 401);
+  r = await (await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, owner)).json();
+  assert.equal(r.payout.amount_cents, 150); assert.equal(r.payout.status, 'paid');
+  await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, owner); assert.equal(tables.payouts.length, 1); ok('owner marks a month as paid: 3 bags x EUR 0.50, once');
+  j = await (await get(pBookings, aurora)).json(); assert.equal(j.payouts[0].status, 'paid'); ok('partner sees the month as paid');
 }
 
 // ---------- not configured ----------

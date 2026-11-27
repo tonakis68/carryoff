@@ -39,3 +39,18 @@ export async function verifyWebhook(env, rawBody, header, toleranceSec = 300, no
   const expected = toHex(await hmacBytes(env.STRIPE_WEBHOOK_SECRET, `${t}.${rawBody}`));
   return sigs.some((s) => timingEq(s, expected));
 }
+
+// Full refund of a paid booking. The idempotency key makes a repeated tap safe: Stripe refunds only once.
+export async function refundPayment(env, { paymentIntent, ref }) {
+  const res = await fetch('https://api.stripe.com/v1/refunds', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, 'content-type': 'application/x-www-form-urlencoded', 'idempotency-key': `refund-${ref}` },
+    body: new URLSearchParams({ payment_intent: paymentIntent, 'metadata[ref]': ref }).toString(),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    console.error('stripe refund', res.status, JSON.stringify(j).slice(0, 300));
+    throw new HttpError(502, 'refund_failed');
+  }
+  return { id: j.id };
+}

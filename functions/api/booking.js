@@ -20,7 +20,7 @@ export const onRequestGet = handler(async ({ request, env }) => {
     ok: true, ref: b.ref, status: b.status, partner: b.partner_id, name: b.customer_name, phone: b.customer_phone,
     date: b.drop_date, dropTime: b.drop_time, pickTime: b.pick_time,
     items: { pack: b.n_pack, med: b.n_med, large: b.n_large }, totalCents: b.total_cents, tags: b.tags || [],
-    k: tok,
+    k: tok, storedAt: b.stored_at, photo: b.status === 'stored' ? b.photo_data : null,
     place: paid ? { name: p.name, address: p.address, lat: p.lat, lng: p.lng } : null,
   });
 });

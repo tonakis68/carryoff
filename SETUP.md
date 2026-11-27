@@ -54,3 +54,10 @@ Open the preview address of the `stage-1` branch (Cloudflare → carryoff → De
 5. Check `https://carryoff.eu/api/health` shows `"payments": true`.
 6. Test card: 4242 4242 4242 4242, any future date, any CVC.
 Going live later: swap in the live `sk_live_...` key and a live-mode webhook secret. Nothing else changes.
+
+## Stage 3: partner and owner on real bookings
+
+1. Run `supabase/stage3.sql` once in the Supabase SQL editor (adds payment reference, photo and refund columns).
+2. Deploy (push to main). No new Cloudflare variables are needed.
+3. Test: book with the Stripe test card, log in as the partner, scan or type the code, tag the bags, take a photo, hand back. Refusing bags refunds the customer in Stripe automatically.
+Bookings paid before stage 3 have no stored payment reference: refund those by hand in Stripe if a partner refuses them.

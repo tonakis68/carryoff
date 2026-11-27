@@ -28,7 +28,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
   }
 
   // Only the first delivery flips the status, so a repeated webhook never sends a second email.
-  const flipped = await db.update(env, 'bookings', { ref: eq(ref), status: eq('pending_payment') }, { status: 'booked', paid_at: new Date().toISOString() });
+  const flipped = await db.update(env, 'bookings', { ref: eq(ref), status: eq('pending_payment') }, { status: 'booked', paid_at: new Date().toISOString(), ...(typeof s.payment_intent === 'string' ? { payment_intent: s.payment_intent } : {}) });
   if (flipped.length) {
     const partner = (await db.select(env, 'partners', { filters: { id: eq(booking.partner_id) }, limit: 1 }))[0] || {};
     const origin = new URL(request.url).origin;
