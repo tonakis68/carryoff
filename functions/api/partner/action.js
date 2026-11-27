@@ -1,3 +1,4 @@
+import { bookToken } from '../../_shared/booktoken.js';
 import { db, eq } from '../../_shared/db.js';
 import { sendMail, tpl } from '../../_shared/mail.js';
 import { nowInVarna } from '../../_shared/pricing.js';
@@ -27,7 +28,8 @@ export const onRequestPost = handler(async ({ request, env }) => {
     const photo = String(b.photo || '');
     if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(photo) || photo.length > 300000) throw new HttpError(400, 'bad_photo');
     const done = await db.update(env, 'bookings', where('booked'), { status: 'stored', tags, photo_data: photo, stored_at: new Date().toISOString() });
-    if (done.length) await sendMail(env, { to: bk.customer_email, ...tpl.bagsReceived({ place: partner.name || '', bags, tags: tags.join(', '), tagCount: tags.length, lastPickup: `${new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(bk.pick_date + 'T00:00:00Z'))}, ${bk.pick_time}` }) });
+    const origin = new URL(request.url).origin, k = await bookToken(env, ref);
+    if (done.length) await sendMail(env, { to: bk.customer_email, ...tpl.bagsReceived({ ref, qrUrl: `${origin}/api/qr?ref=${ref}&k=${k}`, bookingUrl: `${origin}/?paid=${ref}&k=${k}`, place: partner.name || '', bags, tags: tags.join(', '), tagCount: tags.length, lastPickup: `${new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(bk.pick_date + 'T00:00:00Z'))}, ${bk.pick_time}` }) });
     return json({ ok: true, status: 'stored', at: new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Sofia', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()) });
   }
 

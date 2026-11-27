@@ -391,7 +391,7 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   outbox.length = 0;
   let r = await act(aurora, { ref: 'CO-AAAA1', action: 'checkin', tags: ['7', '8'], photo });
   assert.equal(r.status, 200); assert.equal(A.status, 'stored'); assert.deepEqual(A.tags, ['7', '8']); assert.equal(A.photo_data, photo);
-  assert.match(outbox.at(-1).subject, /stored/i); assert.ok(JSON.stringify(outbox.at(-1).to).includes("co-aaaa1@example.com"));
+  assert.match(outbox.at(-1).subject, /stored/i); assert.match(outbox.at(-1).html, /api\/qr\?ref=CO-AAAA1&amp;k=/); assert.match(outbox.at(-1).html, /show this QR code/i); assert.ok(JSON.stringify(outbox.at(-1).to).includes("co-aaaa1@example.com"));
   assert.equal((await act(aurora, { ref: 'CO-AAAA1', action: 'checkin', tags: ['7', '8'], photo })).status, 409); assert.equal(outbox.length, 1);
   ok('bags received: stored with tags and photo, customer emailed once; a second tap does nothing');
   j = await (await get(bookingApi, null, `?ref=CO-AAAA1&email=co-aaaa1@example.com`)).json();

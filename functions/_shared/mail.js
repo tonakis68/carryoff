@@ -114,8 +114,15 @@ export const tpl = {
     return {
       kind: 'bags_received',
       subject: `Your bags are stored at ${b.place}`,
-      text: `Your ${b.bags === 1 ? 'bag is' : `bags (${b.bags}) are`} stored at ${b.place}. ${label}: ${b.tags}. Last pick-up ${b.lastPickup}.`,
-      html: wrap('Your bags are stored', `<p>At <b>${esc(b.place)}</b>. ${label}: <b>${esc(b.tags)}</b>.</p><p>Last pick-up: <b>${esc(b.lastPickup)}</b>.</p>`),
+      text: `Your ${b.bags === 1 ? 'bag is' : `bags (${b.bags}) are`} stored at ${b.place}. ${label}: ${b.tags}. Last pick-up ${b.lastPickup}.\n` +
+        `When you collect your bags, show your booking code ${b.ref} or this link: ${b.bookingUrl}`,
+      html: wrap('Your bags are stored',
+        `<p style="margin:0 0 12px">At <b>${esc(b.place)}</b>. ${label}: <b>${esc(b.tags)}</b>.</p>` +
+        `<p style="margin:0 0 12px">Last pick-up: <b>${esc(b.lastPickup)}</b>.</p>` +
+        `<p style="margin:0 0 4px"><b>When you collect your bags, show this QR code</b> and your photo ID. The place scans it to find your booking.</p>` +
+        `<p style="margin:0 0 4px;font-size:24px;font-weight:700;letter-spacing:3px">${esc(b.ref)}</p>` +
+        `<p style="margin:0 0 12px"><img src="${esc(b.qrUrl)}" width="180" height="180" alt="QR code for booking ${esc(b.ref)}" style="display:block;border:1px solid #e3e8f4;border-radius:8px"></p>` +
+        `<p style="margin:0"><a href="${esc(b.bookingUrl)}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:700">View my booking</a></p>`),
     };
   },
   bagsReturned: () => ({
