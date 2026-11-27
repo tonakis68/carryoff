@@ -192,6 +192,9 @@ input[type=date],input[type=text],input[type=email],input[type=tel],select{backg
 .pa{display:grid;gap:14px}
 .row2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
 @media (max-width:860px){.row2{grid-template-columns:minmax(0,1fr)}}
+.lab2.req-bad-lab,.req-bad-lab{color:var(--bad)}
+#addForm input.req-bad{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent)}
+#odGroup.req-bad{outline:2px solid var(--bad);outline-offset:4px;border-radius:8px}
 .lab2{display:block;font:600 11px/1 var(--f-body);text-transform:uppercase;letter-spacing:.07em;color:var(--ink-2);margin-bottom:6px}
 input[type=number]{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 10px;min-height:42px;width:100%;min-width:0}
 .ci{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
@@ -3252,15 +3255,31 @@ function ownerPartnersView(){
     inp('ofEmail',T("Email (used for their login)")+' *',f.email,'type="email" inputmode="email" autocomplete="off"')+
     inp('ofCap',T("How many bags can they hold at once")+' *',f.cap,'inputmode="numeric"')+
     '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofOpen">'+T("Opens")+' *</label><input id="ofOpen" class="big" type="time" value="'+esc(f.opens||'09:00')+'"></div><div style="flex:1"><label class="lab2" for="ofClose">'+T("Closes")+' *</label><input id="ofClose" class="big" type="time" value="'+esc(f.closes||'20:00')+'"></div></div>'+
-    '<div><span class="lab2">'+T("Open on")+' *</span><div>'+days+'</div><p class="note" style="margin:4px 0 0">'+T("For open around the clock, set 00:00 to 24:00.")+'</p></div>'+
+    '<div><span class="lab2">'+T("Open on")+' *</span><div id="odGroup">'+days+'</div><p class="note" style="margin:4px 0 0">'+T("For open around the clock, set 00:00 to 24:00.")+'</p></div>'+
     inp('ofDesc',T("One-line description for customers (optional)"),f.desc,'autocomplete="off"')+
-    '<p class="note" style="margin:0">* '+T("required")+'</p><button type="submit" class="btn" id="ofSave">'+T("Add partner and send welcome email")+'</button></form>'+msg+
+    '<p class="note" id="reqNote" style="margin:0">* '+T("required")+'</p><button type="submit" class="btn" id="ofSave">'+T("Add partner and send welcome email")+'</button></form>'+msg+
    '</div>'+
    (list?'<div class="panel-card"><h3 style="margin:0;font-size:16px">'+T("All partners")+'</h3><div class="tscroll"><table class="tiers"><thead><tr><th scope="col">'+T("Partner")+'</th><th scope="col">'+T("Login email")+'</th><th scope="col">'+T("Status")+'</th><th scope="col"></th></tr></thead><tbody>'+list+'</tbody></table></div></div>':'')+'</div>';
 }
 function readAddForm(){
   var d=[];for(var i=0;i<7;i++)if($('#od'+i)&&$('#od'+i).checked)d.push(i);
   return {appRef:(pv.addForm||{}).appRef||'',name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.trim(),email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
+}
+function checkAddForm(f){
+  var miss=[];
+  document.querySelectorAll('#addForm .req-bad').forEach(function(x){x.classList.remove('req-bad')});
+  document.querySelectorAll('#addForm .req-bad-lab').forEach(function(x){x.classList.remove('req-bad-lab')});
+  function lab(id){return document.querySelector('#addForm label[for="'+id+'"]')}
+  function need(id,ok){if(!ok)miss.push({el:$('#'+id),lab:lab(id)})}
+  need('ofName',f.name.length>=2);
+  need('ofCoords',f.coords.length>=5);
+  need('ofArea',f.area.length>=3);
+  need('ofEmail',/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email));
+  var c=parseInt(f.cap,10);need('ofCap',c>=1&&c<=500);
+  need('ofOpen',!!f.opens);
+  need('ofClose',!!f.closes&&(!f.opens||f.closes>f.opens));
+  if(!f.days.length){var g=$('#odGroup');miss.push({el:g,lab:g.previousElementSibling,focus:false})}
+  return miss;
 }
 function addErr(j){
   var m={invalid:T("Check the fields marked * : name, area, email, capacity, opening hours and days."),geocode_failed:T("No location found. Paste the Google Maps pin (Share link) of the place."),pin_unreadable:T("That pin could not be read. In Google Maps tap Share, copy the link and paste it here."),outside_varna:T("These coordinates are outside Varna."),email_taken:T("This email already belongs to another partner."),not_logged_in:T("Please log in again.")};
@@ -3445,7 +3464,16 @@ pa.addEventListener('submit',function(e){
   else if(e.target.id==='outForm')doCheckOut();
   else if(e.target.id==='psForm')submitApp();
   else if(e.target.id==='addForm'){
-    var f=readAddForm(),btn=$('#ofSave');pv.addForm=f;btn.disabled=true;
+    var f=readAddForm(),btn=$('#ofSave');pv.addForm=f;
+    var miss=checkAddForm(f);
+    if(miss.length){
+      miss.forEach(function(m){m.el.classList.add('req-bad');m.lab.classList.add('req-bad-lab')});
+      var first=miss[0];first.el.scrollIntoView({behavior:'smooth',block:'center'});
+      if(first.focus!==false)setTimeout(function(){try{first.el.focus({preventScroll:true})}catch(x){}},350);
+      var note=$('#reqNote');if(note){note.className='why';note.textContent=T("Please fill in the fields marked in red.")+' ('+miss.length+')'}
+      return;
+    }
+    btn.disabled=true;
     api('/api/owner/partners',f).then(function(j){
       btn.disabled=false;
       if(j&&j.ok){
@@ -3456,6 +3484,8 @@ pa.addEventListener('submit',function(e){
     });
   }
 });
+document.addEventListener('input',function(e){var t=e.target;if(t&&t.classList&&t.classList.contains('req-bad')){t.classList.remove('req-bad');var l=document.querySelector('#addForm label[for="'+t.id+'"]');if(l)l.classList.remove('req-bad-lab')}});
+document.addEventListener('change',function(e){var g=$('#odGroup');if(g&&g.contains(e.target)&&g.classList.contains('req-bad')){g.classList.remove('req-bad');if(g.previousElementSibling)g.previousElementSibling.classList.remove('req-bad-lab')}});
 function applyPlacesNow(){api('/api/partners').then(function(r){if(r&&r.ok){
   applyPlaces(r,true);
   Object.keys(markers).forEach(function(id){if(!byId(id)){lmap.removeLayer(markers[id]);if(haloEls[id]&&haloEls[id].remove)haloEls[id].remove();delete markers[id];delete pinEls[id];delete haloEls[id]}});
