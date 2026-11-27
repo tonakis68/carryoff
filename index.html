@@ -3232,6 +3232,13 @@ var DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function ownerSubnav(){
   return '<div class="nav" role="group" aria-label="'+T("Owner sections")+'"><button type="button" data-osub="earn" aria-current="'+((pv.ownSub||'earn')==='earn')+'">'+T("Earnings")+'</button><button type="button" data-osub="partners" aria-current="'+(pv.ownSub==='partners')+'">'+T("Partners")+(pv.ownApps&&pv.ownApps.length?' ('+pv.ownApps.length+')':'')+'</button></div>';
 }
+function timeSel(id,val,kind){
+  var o=[],i,t;
+  if(kind===2)o.push('');
+  for(i=(kind===1?1:0);i<=(kind===1?48:47);i++){t=(i===48?'24:00':('0'+Math.floor(i/2)).slice(-2)+':'+(i%2?'30':'00'));o.push(t)}
+  if(val&&o.indexOf(val)<0){o.push(val);o.sort()}
+  return '<select id="'+id+'" class="big">'+o.map(function(v){return '<option value="'+v+'"'+(v===val?' selected':'')+'>'+(v||'–')+'</option>'}).join('')+'</select>';
+}
 function ownerPartnersView(){
   var f=pv.addForm||{},msg=pv.addMsg?'<p class="'+(pv.addMsg.ok?'okmsg':'why')+'" role="status" style="margin:0">'+pv.addMsg.t+'</p>':'';
   function inp(id,label,val,extra){return '<div><label class="lab2" for="'+id+'">'+label+'</label><input id="'+id+'" class="big" value="'+esc(val||'')+'" '+(extra||'')+'></div>'}
@@ -3255,8 +3262,8 @@ function ownerPartnersView(){
     inp('ofPhone',T("Phone")+' *',f.phone,'inputmode="tel" autocomplete="off"')+
     inp('ofEmail',T("Email (used for their login)")+' *',f.email,'type="email" inputmode="email" autocomplete="off"')+
     inp('ofCap',T("How many bags can they hold at once")+' *',f.cap,'inputmode="numeric"')+
-    '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofOpen">'+T("Opens")+' *</label><input id="ofOpen" class="big" type="time" value="'+esc(f.opens||'09:00')+'"></div><div style="flex:1"><label class="lab2" for="ofClose">'+T("Closes")+' *</label><input id="ofClose" class="big" type="time" value="'+esc(f.closes||'20:00')+'"></div></div>'+
-    '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofBFrom">'+T("Lunch break from (optional)")+'</label><input id="ofBFrom" class="big" type="time" value="'+esc(f.bfrom||'')+'"></div><div style="flex:1"><label class="lab2" for="ofBTo">'+T("Lunch break to")+'</label><input id="ofBTo" class="big" type="time" value="'+esc(f.bto||'')+'"></div></div>'+
+    '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofOpen">'+T("Opens")+' *</label>'+timeSel('ofOpen',f.opens||'09:00',0)+'</div><div style="flex:1"><label class="lab2" for="ofClose">'+T("Closes")+' *</label>'+timeSel('ofClose',f.closes||'20:00',1)+'</div></div>'+
+    '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofBFrom">'+T("Lunch break from (optional)")+'</label>'+timeSel('ofBFrom',f.bfrom||'',2)+'</div><div style="flex:1"><label class="lab2" for="ofBTo">'+T("Lunch break to")+'</label>'+timeSel('ofBTo',f.bto||'',2)+'</div></div>'+
     '<div><span class="lab2">'+T("Open on")+' *</span><div id="odGroup">'+days+'</div><p class="note" style="margin:4px 0 0">'+T("For open around the clock, set 00:00 to 24:00.")+'</p></div>'+
     inp('ofDesc',T("One-line description for customers (optional)"),f.desc,'autocomplete="off"')+
     '<p class="note" id="reqNote" style="margin:0">* '+T("required")+'</p><button type="submit" class="btn" id="ofSave">'+(f.editId?T("Save changes"):T("Add partner and send welcome email"))+'</button>'+(f.editId?'<button type="button" class="btn sec2" data-canceledit="1">'+T("Cancel")+'</button>':'')+'</form>'+msg+
