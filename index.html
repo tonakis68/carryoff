@@ -194,8 +194,8 @@ input[type=date],input[type=text],input[type=email],input[type=tel],select{backg
 .row2{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
 @media (max-width:860px){.row2{grid-template-columns:minmax(0,1fr)}}
 .lab2.req-bad-lab,.req-bad-lab{color:var(--bad)}
-#addForm input.req-bad{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent)}
-#odGroup.req-bad{outline:2px solid var(--bad);outline-offset:4px;border-radius:8px}
+input.req-bad,select.req-bad{border-color:var(--bad);box-shadow:0 0 0 2px var(--bad);background:color-mix(in srgb,var(--bad) 8%,transparent)}
+#odGroup.req-bad,.dayrow.req-bad,.agree.req-bad{outline:2px solid var(--bad);outline-offset:4px;border-radius:8px}
 .lab2{display:block;font:600 11px/1 var(--f-body);text-transform:uppercase;letter-spacing:.07em;color:var(--ink-2);margin-bottom:6px}
 input[type=number]{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 10px;min-height:42px;width:100%;min-width:0}
 .ci{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
@@ -3178,15 +3178,15 @@ function signupHTML(){
   var types=[T("Café"),T("Hotel or hostel"),T("Shop"),T("Convenience store"),T("Coworking"),T("Other")].map(function(t){return '<option>'+t+'</option>'}).join('');
   return '<div class="row2"><form id="psForm" class="panel-card pform" novalidate>'+
    ("<div>"+"<h2>"+T("Become a storage partner")+"</h2>"+"<p class=\"sub\">"+T("Hold bags for travellers in Varna and earn from every booking.")+"</p>"+"</div>")+
-   ("<div>"+"<label class=\"lab2\" for=\"ps-name\">"+T("Business name")+"</label>"+"<input type=\"text\" id=\"ps-name\" autocomplete=\"organization\">"+"</div>")+
-   ("<div class=\"g2\">"+"<div>"+"<label class=\"lab2\" for=\"ps-type\">"+T("Type")+"</label>"+"<select id=\"ps-type\">")+types+("</select>"+"</div>"+"<div>"+"<label class=\"lab2\" for=\"ps-addr\">"+T("Address in Varna")+"</label>"+"<input type=\"text\" id=\"ps-addr\" autocomplete=\"street-address\">"+"</div>"+"</div>")+
-   ("<div>"+"<label class=\"lab2\" for=\"ps-contact\">"+T("Contact person")+"</label>"+"<input type=\"text\" id=\"ps-contact\" autocomplete=\"name\">"+"</div>")+phoneField('ps-phone',T("Phone"),'lab2',false)+
-   ("<div>"+"<label class=\"lab2\" for=\"ps-email\">"+T("Email")+"</label>"+"<input type=\"email\" id=\"ps-email\" autocomplete=\"email\">"+"</div>")+
-   ("<div>"+"<span class=\"lab2\">"+T("How many bags can you hold at once?")+"</span>"+"<div class=\"g3\">"+"<div>"+"<label class=\"lab2\" for=\"ps-cp\" style=\"text-transform:none;letter-spacing:0;font-weight:500;font-size:12px\">"+T("Backpacks")+"</label>"+"<input type=\"number\" id=\"ps-cp\" min=\"0\" max=\"200\" value=\"10\">"+"</div>"+"<div>"+"<label class=\"lab2\" for=\"ps-cm\" style=\"text-transform:none;letter-spacing:0;font-weight:500;font-size:12px\">"+T("Carry-on / cabin bags")+"</label>"+"<input type=\"number\" id=\"ps-cm\" min=\"0\" max=\"200\" value=\"8\">"+"</div>"+"<div>"+"<label class=\"lab2\" for=\"ps-cl\" style=\"text-transform:none;letter-spacing:0;font-weight:500;font-size:12px\">"+T("Large suitcases")+"</label>"+"<input type=\"number\" id=\"ps-cl\" min=\"0\" max=\"200\" value=\"4\">"+"</div>"+"</div>"+"</div>")+
-   ("<div>"+"<span class=\"lab2\">"+T("Opening hours")+"</span>"+"<div class=\"g2\">"+"<div>"+"<label class=\"lab2\" for=\"ps-open\" style=\"text-transform:none;letter-spacing:0;font-weight:500;font-size:12px\">"+T("Opens")+"</label>"+"<select id=\"ps-open\">")+timeOpts('09:00')+("</select>"+"</div>"+"<div>"+"<label class=\"lab2\" for=\"ps-close\" style=\"text-transform:none;letter-spacing:0;font-weight:500;font-size:12px\">"+T("Closes")+"</label>"+"<select id=\"ps-close\">")+timeOpts('18:00')+'</select></div></div></div>'+
-   ("<div>"+"<span class=\"lab2\">"+T("Open on")+"</span>"+"<div class=\"dayrow\">")+days+'</div></div>'+
-   ("<label class=\"agree\">"+"<input type=\"checkbox\" id=\"ps-agree\">"+T("I agree that CarryOff may contact me about becoming a partner.")+"</label>")+
-   '<div id="psErr" class="why" role="alert" style="margin:0"></div>'+
+   ("<div>"+"<label class=\"lab2\" for=\"ps-name\">"+T("Business name")+" *</label>"+"<input type=\"text\" id=\"ps-name\" autocomplete=\"organization\">"+"</div>")+
+   ("<div class=\"g2\">"+"<div>"+"<label class=\"lab2\" for=\"ps-type\">"+T("Type")+" *</label>"+"<select id=\"ps-type\">")+types+("</select>"+"</div>"+"<div>"+"<label class=\"lab2\" for=\"ps-addr\">"+T("Address in Varna")+" *</label>"+"<input type=\"text\" id=\"ps-addr\" autocomplete=\"street-address\">"+"</div>"+"</div>")+
+   ("<div>"+"<label class=\"lab2\" for=\"ps-contact\">"+T("Contact person")+" *</label>"+"<input type=\"text\" id=\"ps-contact\" autocomplete=\"name\">"+"</div>")+phoneField('ps-phone',T("Phone")+' *','lab2',false)+
+   ("<div>"+"<label class=\"lab2\" for=\"ps-email\">"+T("Email")+" *</label>"+"<input type=\"email\" id=\"ps-email\" autocomplete=\"email\">"+"</div>")+
+   ("<div>"+"<span class=\"lab2\">"+T("How many bags can you hold at once?")+" *</span>"+"<div class=\"g3\">"+"<div>"+"<label class=\"lab2\" for=\"ps-cp\" style=\"text-transform:none;letter-spacing:0;font-weight:500;font-size:12px\">"+T("Backpacks")+"</label>"+"<input type=\"number\" id=\"ps-cp\" min=\"0\" max=\"200\" value=\"10\">"+"</div>"+"<div>"+"<label class=\"lab2\" for=\"ps-cm\" style=\"text-transform:none;letter-spacing:0;font-weight:500;font-size:12px\">"+T("Carry-on / cabin bags")+"</label>"+"<input type=\"number\" id=\"ps-cm\" min=\"0\" max=\"200\" value=\"8\">"+"</div>"+"<div>"+"<label class=\"lab2\" for=\"ps-cl\" style=\"text-transform:none;letter-spacing:0;font-weight:500;font-size:12px\">"+T("Large suitcases")+"</label>"+"<input type=\"number\" id=\"ps-cl\" min=\"0\" max=\"200\" value=\"4\">"+"</div>"+"</div>"+"</div>")+
+   ("<div>"+"<span class=\"lab2\">"+T("Opening hours")+" *</span>"+"<div class=\"g2\">"+"<div>"+"<label class=\"lab2\" for=\"ps-open\" style=\"text-transform:none;letter-spacing:0;font-weight:500;font-size:12px\">"+T("Opens")+"</label>"+"<select id=\"ps-open\">")+timeOpts('09:00')+("</select>"+"</div>"+"<div>"+"<label class=\"lab2\" for=\"ps-close\" style=\"text-transform:none;letter-spacing:0;font-weight:500;font-size:12px\">"+T("Closes")+"</label>"+"<select id=\"ps-close\">")+timeOpts('18:00')+'</select></div></div></div>'+
+   ("<div>"+"<span class=\"lab2\">"+T("Open on")+" *</span>"+"<div class=\"dayrow\" id=\"psDays\">")+days+'</div></div>'+
+   ("<label class=\"agree\">"+"<input type=\"checkbox\" id=\"ps-agree\">"+T("I agree that CarryOff may contact me about becoming a partner.")+" *</label>")+
+   '<p class="note" style="margin:0">* '+T("All fields are required.")+'</p><div id="psErr" class="why" role="alert" style="margin:0"></div>'+
    ("<button type=\"submit\" class=\"btn\">"+T("Send application")+"</button>")+
    ("<p class=\"note\" style=\"margin:0\">"+T("Bank details are collected after the agreement is signed.")+"</p>"+"</form>")+
    ("<aside class=\"panel-card\">"+"<h2 style=\"font-size:18px\">"+T("How it works")+"</h2>"+"<ol class=\"steps\">"+"<li>"+T("You send this application.")+"</li>"+"<li>"+T("We call you within two working days and agree the terms.")+"</li>"+"<li>"+T("You get a partner login and a CarryOff sticker kit, and appear on the map.")+"</li>"+"<li>"+T("Customers book. You see their first name, luggage and times, and mark bags received and returned.")+"</li>"+"<li>"+T("You earn €0.50 for every bag you store, whatever the size or the length of stay. We pay out to your bank account, and the payout terms are set in your agreement.")+"</li>"+"</ol>"+"</aside>"+"</div>");
@@ -3429,19 +3429,32 @@ function doRefuse(btn){
 }
 function submitApp(){
   function g(id){return $('#'+id)}
-  var errs=[],name=g('ps-name').value.trim(),addr=g('ps-addr').value.trim(),contact=g('ps-contact').value.trim(),email=g('ps-email').value.trim();
-  var cp=Math.max(0,+g('ps-cp').value||0),cm=Math.max(0,+g('ps-cm').value||0),cl=Math.max(0,+g('ps-cl').value||0);
+  var name=g('ps-name').value.trim(),addr=g('ps-addr').value.trim(),contact=g('ps-contact').value.trim(),email=g('ps-email').value.trim();
+  var rawc=[g('ps-cp').value.trim(),g('ps-cm').value.trim(),g('ps-cl').value.trim()];
+  var cp=Math.max(0,+rawc[0]||0),cm=Math.max(0,+rawc[1]||0),cl=Math.max(0,+rawc[2]||0);
   var nd=document.querySelectorAll('input[name=pd]:checked').length;
-  if(name.length<2)errs.push(T("Enter your business name."));
-  if(addr.length<4)errs.push(T("Enter your address."));
-  if(contact.length<2)errs.push(T("Enter a contact person."));
-  if(!phoneOk('ps-phone'))errs.push(T("Enter a valid phone number, without the country code."));
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))errs.push(T("Enter a valid email address."));
-  if(cp+cm+cl<1)errs.push(T("Enter how many bags you can hold."));
-  if(minOf(g('ps-close').value)<=minOf(g('ps-open').value))errs.push(T("Closing time must be after opening time."));
-  if(!nd)errs.push(T("Choose at least one opening day."));
-  if(!g('ps-agree').checked)errs.push(T("Tick the box to agree to be contacted."));
-  if(errs.length){g('psErr').textContent=errs.join(' ');return}
+  document.querySelectorAll('#psForm .req-bad').forEach(function(x){x.classList.remove('req-bad')});
+  document.querySelectorAll('#psForm .req-bad-lab').forEach(function(x){x.classList.remove('req-bad-lab')});
+  var miss=[],timeBad=false;
+  function lab(id){return document.querySelector('#psForm label[for="'+id+'"]')}
+  function need(id,ok,l){if(!ok)miss.push({el:g(id),lab:l||lab(id)})}
+  need('ps-name',name.length>=2);
+  need('ps-addr',addr.length>=4);
+  need('ps-contact',contact.length>=2);
+  need('ps-phone',phoneOk('ps-phone'));
+  need('ps-email',/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email));
+  var ids=['ps-cp','ps-cm','ps-cl'],none=cp+cm+cl<1;
+  ids.forEach(function(id,i){need(id,rawc[i]!==''&&+rawc[i]>=0&&!none)});
+  if(minOf(g('ps-close').value)<=minOf(g('ps-open').value)){timeBad=true;need('ps-close',false)}
+  if(!nd){var dr=g('psDays');miss.push({el:dr,lab:dr.previousElementSibling,focus:false})}
+  if(!g('ps-agree').checked){var ag=g('ps-agree').closest('label');miss.push({el:ag,lab:ag,focus:false})}
+  if(miss.length){
+    miss.forEach(function(m){m.el.classList.add('req-bad');if(m.lab)m.lab.classList.add('req-bad-lab')});
+    var first=miss[0];first.el.scrollIntoView({behavior:'smooth',block:'center'});
+    if(first.focus!==false)setTimeout(function(){try{first.el.focus({preventScroll:true})}catch(x){}},350);
+    g('psErr').textContent=T("Please fill in or correct the fields marked in red.")+' ('+miss.length+')'+(timeBad?' '+T("Closing time must be after opening time."):'');
+    return;
+  }
   var btn=g('psForm').querySelector('button[type=submit]');if(btn)btn.disabled=true;
   var days=[].map.call(document.querySelectorAll('input[name=pd]:checked'),function(x){return +x.value});
   api('/api/apply',{name:name,type:g('ps-type').value,address:addr,contact:contact,phone:phoneVal('ps-phone'),email:email,cap_pack:cp,cap_med:cm,cap_large:cl,opens:g('ps-open').value,closes:g('ps-close').value,days:days,website:''}).then(function(j){
@@ -3511,8 +3524,8 @@ pa.addEventListener('submit',function(e){
     });
   }
 });
-document.addEventListener('input',function(e){var t=e.target;if(t&&/^of(Open|Close|BFrom|BTo)$/.test(t.id)&&pv.addForm)pv.addForm.hoursChanged=true;if(t&&t.classList&&t.classList.contains('req-bad')){t.classList.remove('req-bad');var l=document.querySelector('#addForm label[for="'+t.id+'"]');if(l)l.classList.remove('req-bad-lab')}});
-document.addEventListener('change',function(e){if(e.target&&/^(of(Open|Close|BFrom|BTo)|od\d)$/.test(e.target.id||'')&&pv.addForm)pv.addForm.hoursChanged=true;var g=$('#odGroup');if(g&&g.contains(e.target)&&g.classList.contains('req-bad')){g.classList.remove('req-bad');if(g.previousElementSibling)g.previousElementSibling.classList.remove('req-bad-lab')}});
+document.addEventListener('input',function(e){var t=e.target;if(t&&/^of(Open|Close|BFrom|BTo)$/.test(t.id)&&pv.addForm)pv.addForm.hoursChanged=true;if(t&&t.classList&&t.classList.contains('req-bad')){t.classList.remove('req-bad');var l=document.querySelector('label[for="'+t.id+'"]');if(l)l.classList.remove('req-bad-lab')}});
+document.addEventListener('change',function(e){var ct=e.target;if(ct&&ct.closest){var dr=ct.closest('.dayrow.req-bad');if(dr){dr.classList.remove('req-bad');if(dr.previousElementSibling)dr.previousElementSibling.classList.remove('req-bad-lab')}var ag=ct.closest('label.agree.req-bad');if(ag)ag.classList.remove('req-bad');if(ct.classList&&ct.classList.contains('req-bad')&&ct.tagName==='SELECT'){ct.classList.remove('req-bad');var l2=document.querySelector('label[for="'+ct.id+'"]');if(l2)l2.classList.remove('req-bad-lab')}}if(e.target&&/^(of(Open|Close|BFrom|BTo)|od\d)$/.test(e.target.id||'')&&pv.addForm)pv.addForm.hoursChanged=true;var g=$('#odGroup');if(g&&g.contains(e.target)&&g.classList.contains('req-bad')){g.classList.remove('req-bad');if(g.previousElementSibling)g.previousElementSibling.classList.remove('req-bad-lab')}});
 function applyPlacesNow(){api('/api/partners').then(function(r){if(r&&r.ok){
   applyPlaces(r,true);
   Object.keys(markers).forEach(function(id){if(!byId(id)){lmap.removeLayer(markers[id]);if(haloEls[id]&&haloEls[id].remove)haloEls[id].remove();delete markers[id];delete pinEls[id];delete haloEls[id]}});
