@@ -3255,7 +3255,7 @@ function partnerLogin(){
    (pv.lgInfo?("<p class=\"note\" role=\"status\" style=\"margin:0\">"+esc(pv.lgInfo)+"</p>"):'')+("</div>"+"</div>");
 }
 function renderPartner(){
-  var nav=("<div class=\"nav\" role=\"group\" aria-label=\""+T("Partner area sections")+"\">"+"<button type=\"button\" data-tab=\"dash\" aria-current=\"")+(pv.tab==='dash')+("\">"+T("Dashboard")+"</button>"+"<button type=\"button\" data-tab=\"earn\" aria-current=\"")+(pv.tab==='earn')+("\">"+T("Earnings")+"</button>"+"<button type=\"button\" data-tab=\"owner\" aria-current=\"")+(pv.tab==='owner')+("\">"+T("Owner (demo)")+"</button>"+"<button type=\"button\" data-tab=\"signup\" aria-current=\"")+(pv.tab==='signup')+("\">"+T("Become a partner")+"</button>"+"</div>");
+  var nav=("<div class=\"nav\" role=\"group\" aria-label=\""+T("Partner area sections")+"\">"+"<button type=\"button\" data-tab=\"dash\" aria-current=\"")+(pv.tab==='dash')+("\">"+T("Dashboard")+"</button>"+"<button type=\"button\" data-tab=\"earn\" aria-current=\"")+(pv.tab==='earn')+("\">"+T("Earnings")+"</button>"+"<button type=\"button\" data-tab=\"owner\" aria-current=\"")+(pv.tab==='owner')+("\">"+T("Owner")+"</button>"+"<button type=\"button\" data-tab=\"signup\" aria-current=\"")+(pv.tab==='signup')+("\">"+T("Become a partner")+"</button>"+"</div>");
   pa.innerHTML=("<h1>"+T("For storage partners")+"</h1>")+nav+'<div class="pa">'+(pv.tab==='dash'?(pv.me?dashHTML():partnerLogin()):pv.tab==='earn'?(pv.me?earnView():partnerLogin()):pv.tab==='owner'?ownerView():signupHTML())+'</div>';
 }
 function note(t,ok){pv.note={t:t,ok:ok}}
