@@ -1,5 +1,5 @@
 import { db, eq } from '../../_shared/db.js';
-import { geocode, inVarna, parseCoords, publicPin } from '../../_shared/geocode.js';
+import { geocode, inVarna, parseMapsPin, publicPin } from '../../_shared/geocode.js';
 import { sendMail, tpl } from '../../_shared/mail.js';
 import { requireRole } from '../../_shared/session.js';
 import { HttpError, handler, isEmail, json, needEnv, normEmail, readJson, requireSameOrigin } from '../../_shared/util.js';
@@ -38,12 +38,14 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const name = clean(b.name, 120), address = clean(b.address, 200), email = normEmail(b.email);
   const cap = Math.floor(+b.cap || 0), opens = hhmm(b.opens), closes = hhmm(b.closes);
   const days = Array.isArray(b.days) ? [...new Set(b.days.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))] : [];
-  if (name.length < 2 || address.length < 4 || !isEmail(email) || cap < 1 || cap > 500 || !opens || !closes || closes <= opens || !days.length) throw new HttpError(400, 'invalid');
+  if (name.length < 2 || !isEmail(email) || cap < 1 || cap > 500 || !opens || !closes || closes <= opens || !days.length) throw new HttpError(400, 'invalid');
   const phone = clean(b.phone, 40), area = clean(b.area, 60);
   if (area.length < 3) throw new HttpError(400, 'invalid');
 
-  let c = parseCoords(b.coords);
-  if (!c) c = await geocode(address).catch(() => null);
+  const pasted = clean(b.coords, 600);
+  let c = pasted ? await parseMapsPin(pasted).catch(() => null) : null;
+  if (pasted && !c) throw new HttpError(422, 'pin_unreadable');
+  if (!c && address.length >= 4) c = await geocode(address).catch(() => null);
   if (!c) throw new HttpError(422, 'geocode_failed');
   if (!inVarna(c)) throw new HttpError(422, 'outside_varna');
 

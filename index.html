@@ -3241,20 +3241,20 @@ function ownerPartnersView(){
    (apps?'<div><h3 style="margin:0 0 8px;font-size:16px">'+T("Applications waiting")+'</h3>'+apps+'</div>':'')+
    '<div><h3 style="margin:0 0 8px;font-size:16px">'+(f.appRef?T("Approve application"):T("Add a partner"))+'</h3></div>'+
    '<form id="addForm" novalidate style="display:flex;flex-direction:column;gap:10px">'+
-    inp('ofName',T("Business name"),f.name,'autocomplete="off"')+
-    inp('ofType',T("Type (café, hotel, shop…)"),f.type,'autocomplete="off"')+
-    inp('ofAddr',T("Street address in Varna"),f.address,'autocomplete="off"')+
-    inp('ofArea',T("Area shown to customers before they pay"),f.area,'placeholder="near the Sea Garden" autocomplete="off"')+
-    inp('ofContact',T("Contact person"),f.contact,'autocomplete="off"')+
-    inp('ofPhone',T("Phone"),f.phone,'inputmode="tel" autocomplete="off"')+
-    inp('ofEmail',T("Email (used for their login)"),f.email,'type="email" inputmode="email" autocomplete="off"')+
-    inp('ofCap',T("How many bags can they hold at once"),f.cap,'inputmode="numeric"')+
-    '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofOpen">'+T("Opens")+'</label><input id="ofOpen" class="big" type="time" value="'+esc(f.opens||'09:00')+'"></div><div style="flex:1"><label class="lab2" for="ofClose">'+T("Closes")+'</label><input id="ofClose" class="big" type="time" value="'+esc(f.closes||'20:00')+'"></div></div>'+
-    '<div><span class="lab2">'+T("Open on")+'</span><div>'+days+'</div><p class="note" style="margin:4px 0 0">'+T("For open around the clock, set 00:00 to 24:00.")+'</p></div>'+
-    inp('ofCoords',T("Coordinates (only if the address is not found)"),f.coords,'placeholder="43.2051, 27.9102" autocomplete="off"')+
-    '<p class="note" style="margin:0">'+T("In Google Maps press and hold on the door, then copy the two numbers at the top and paste them here.")+'</p>'+
+    inp('ofName',T("Business name")+' *',f.name,'autocomplete="off"')+
+    inp('ofType',T("Type (café, hotel, shop…) (optional)"),f.type,'autocomplete="off"')+
+    inp('ofCoords',T("Google Maps pin")+' *',f.coords,'placeholder="https://maps.app.goo.gl/…" autocomplete="off" autocapitalize="off" spellcheck="false"')+
+    '<p class="note" style="margin:0">'+T("In Google Maps open the place, tap Share, copy the link and paste it here. Pasting two coordinates like 43.2051, 27.9102 also works.")+'</p>'+
+    inp('ofAddr',T("Street address in Varna (optional)"),f.address,'autocomplete="off"')+
+    inp('ofArea',T("Area shown to customers before they pay")+' *',f.area,'placeholder="near the Sea Garden" autocomplete="off"')+
+    inp('ofContact',T("Contact person (optional)"),f.contact,'autocomplete="off"')+
+    inp('ofPhone',T("Phone (optional)"),f.phone,'inputmode="tel" autocomplete="off"')+
+    inp('ofEmail',T("Email (used for their login)")+' *',f.email,'type="email" inputmode="email" autocomplete="off"')+
+    inp('ofCap',T("How many bags can they hold at once")+' *',f.cap,'inputmode="numeric"')+
+    '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofOpen">'+T("Opens")+' *</label><input id="ofOpen" class="big" type="time" value="'+esc(f.opens||'09:00')+'"></div><div style="flex:1"><label class="lab2" for="ofClose">'+T("Closes")+' *</label><input id="ofClose" class="big" type="time" value="'+esc(f.closes||'20:00')+'"></div></div>'+
+    '<div><span class="lab2">'+T("Open on")+' *</span><div>'+days+'</div><p class="note" style="margin:4px 0 0">'+T("For open around the clock, set 00:00 to 24:00.")+'</p></div>'+
     inp('ofDesc',T("One-line description for customers (optional)"),f.desc,'autocomplete="off"')+
-    '<button type="submit" class="btn" id="ofSave">'+T("Add partner and send welcome email")+'</button></form>'+msg+
+    '<p class="note" style="margin:0">* '+T("required")+'</p><button type="submit" class="btn" id="ofSave">'+T("Add partner and send welcome email")+'</button></form>'+msg+
    '</div>'+
    (list?'<div class="panel-card"><h3 style="margin:0;font-size:16px">'+T("All partners")+'</h3><div class="tscroll"><table class="tiers"><thead><tr><th scope="col">'+T("Partner")+'</th><th scope="col">'+T("Login email")+'</th><th scope="col">'+T("Status")+'</th><th scope="col"></th></tr></thead><tbody>'+list+'</tbody></table></div></div>':'')+'</div>';
 }
@@ -3263,7 +3263,7 @@ function readAddForm(){
   return {appRef:(pv.addForm||{}).appRef||'',name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.trim(),email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
 }
 function addErr(j){
-  var m={invalid:T("Check the details: name, address, area, email, capacity and opening hours."),geocode_failed:T("The address was not found. Paste the coordinates from Google Maps."),outside_varna:T("These coordinates are outside Varna."),email_taken:T("This email already belongs to another partner."),not_logged_in:T("Please log in again.")};
+  var m={invalid:T("Check the fields marked * : name, area, email, capacity, opening hours and days."),geocode_failed:T("No location found. Paste the Google Maps pin (Share link) of the place."),pin_unreadable:T("That pin could not be read. In Google Maps tap Share, copy the link and paste it here."),outside_varna:T("These coordinates are outside Varna."),email_taken:T("This email already belongs to another partner."),not_logged_in:T("Please log in again.")};
   return m[j&&j.error]||T("Something went wrong. Please try again.");
 }
 function ownerView(){

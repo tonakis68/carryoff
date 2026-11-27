@@ -23,3 +23,42 @@ export function publicPin(id, c) {
   const ang = ((h % 3600) / 3600) * 2 * Math.PI, dist = 40 + ((h >>> 12) % 50);
   return { lat: +(c.lat + (dist * Math.cos(ang)) / 111320).toFixed(5), lng: +(c.lng + (dist * Math.sin(ang)) / (111320 * Math.cos((c.lat * Math.PI) / 180))).toFixed(5) };
 }
+
+// Whatever Google Maps gives when you share a pin: plain "43.2, 27.9", a long link (…@43.2,27.9,17z / …!3d43.2!4d27.9 / …?q=43.2,27.9),
+// or a short maps.app.goo.gl link, with or without the place name the phone puts in front of it.
+function fromText(t) {
+  let m = t.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+  if (!m) m = t.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
+  if (!m) m = t.match(/[?&](?:q|query|ll|destination|center)=(-?\d{1,3}\.\d+)(?:,|%2C)\s*(-?\d{1,3}\.\d+)/i);
+  if (!m) m = t.match(/(-?\d{1,3}\.\d{3,})\s*[,; ]\s*(-?\d{1,3}\.\d{3,})/);
+  return m ? { lat: +m[1], lng: +m[2] } : null;
+}
+export async function parseMapsPin(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return null;
+  const plain = parseCoords(raw);
+  if (plain) return plain;
+  let url = (raw.match(/https?:\/\/[^\s<>"']+/) || [])[0];
+  let text = raw;
+  try { text = decodeURIComponent(raw); } catch {}
+  const direct = fromText(text);
+  if (direct) return direct;
+  // Follow a short link a few steps (maps.app.goo.gl, goo.gl/maps) and read the position from where it lands.
+  for (let i = 0; url && i < 5; i++) {
+    const host = new URL(url).hostname;
+    if (!/(^|\.)(google\.[a-z.]+|goo\.gl|maps\.app\.goo\.gl)$/.test(host)) return null;
+    const r = await fetch(url, { redirect: 'manual', headers: { 'user-agent': 'Mozilla/5.0 (compatible; CarryOff/1.0)' } });
+    const loc = r.headers.get('location');
+    if (loc) {
+      url = new URL(loc, url).toString();
+      let t = url;
+      try { t = decodeURIComponent(url); } catch {}
+      const c = fromText(t);
+      if (c) return c;
+      continue;
+    }
+    const body = await r.text().catch(() => '');
+    return fromText(body.slice(0, 200000));
+  }
+  return null;
+}

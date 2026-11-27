@@ -445,6 +445,16 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   assert.equal((await add({ ...base, email: 'nope' })).status, 400); assert.equal((await add({ ...base, closes: '07:00' })).status, 400);
   geoResult = []; assert.equal((await add(base)).status, 422); ok('bad details or an address that cannot be found are refused');
   assert.equal((await add({ ...base, coords: '50.1, 10.2' })).status, 422); ok('coordinates outside Varna are refused');
+  { const { parseMapsPin } = await import('../functions/_shared/geocode.js');
+    const eq2 = async (t, la, ln) => { const c = await parseMapsPin(t); assert.ok(c && Math.abs(c.lat - la) < 1e-6 && Math.abs(c.lng - ln) < 1e-6, t); };
+    await eq2('43.2051, 27.9102', 43.2051, 27.9102);
+    await eq2('Café Mosaic\nhttps://www.google.com/maps/place/Cafe/@43.2051,27.9102,17z/data=!3m1', 43.2051, 27.9102);
+    await eq2('https://www.google.com/maps/place/X/data=!4m6!3d43.2111!4d27.9222', 43.2111, 27.9222);
+    await eq2('https://maps.google.com/?q=43.2012,27.9033', 43.2012, 27.9033);
+    assert.equal(await parseMapsPin('hello there'), null);
+    ok('Google Maps pins (share links and coordinates) are read'); }
+  assert.equal((await add({ ...base, coords: 'not a pin' })).status, 422); ok('unreadable pin is refused');
+  { const r = await add({ ...base, name: 'No Address Shop', email: 'noaddr@example.com', address: '', coords: 'https://www.google.com/maps/place/X/@43.2150,27.9100,17z' }); assert.equal(r.status, 201); ok('address is optional when a pin is pasted'); }
   geoResult = [{ lat: '43.2051', lon: '27.9102' }]; outbox.length = 0;
   let r = await add(base), j = await r.json(); assert.equal(r.status, 201); assert.equal(j.id, 'kafe-makedoniya');
   const row = tables.partners.find((p) => p.id === 'kafe-makedoniya');
