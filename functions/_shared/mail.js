@@ -109,12 +109,15 @@ export const tpl = {
         `<p style="font-size:13px;color:#5b6784;margin:0">Keep your passport, keys, phone, cash, medication and electronics with you. Bags cannot be opened or accessed while stored.</p>`),
     };
   },
-  bagsReceived: (b) => ({
-    kind: 'bags_received',
-    subject: `Your bags are stored at ${b.place}`,
-    text: `Your bags (${b.bags}) are stored at ${b.place}. Tag numbers: ${b.tags}. Last pick-up ${b.lastPickup}.`,
-    html: wrap('Your bags are stored', `<p>At <b>${esc(b.place)}</b>. Tag numbers: <b>${esc(b.tags)}</b>.</p><p>Last pick-up ${esc(b.lastPickup)}.</p>`),
-  }),
+  bagsReceived: (b) => {
+    const label = b.tagCount === 1 ? 'Tag number' : 'Tag numbers';
+    return {
+      kind: 'bags_received',
+      subject: `Your bags are stored at ${b.place}`,
+      text: `Your ${b.bags === 1 ? 'bag is' : `bags (${b.bags}) are`} stored at ${b.place}. ${label}: ${b.tags}. Last pick-up ${b.lastPickup}.`,
+      html: wrap('Your bags are stored', `<p>At <b>${esc(b.place)}</b>. ${label}: <b>${esc(b.tags)}</b>.</p><p>Last pick-up: <b>${esc(b.lastPickup)}</b>.</p>`),
+    };
+  },
   bagsReturned: () => ({
     kind: 'bags_returned',
     subject: 'Your bags were handed back',
