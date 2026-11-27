@@ -40,7 +40,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const days = Array.isArray(b.days) ? [...new Set(b.days.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))] : [];
   if (name.length < 2 || !isEmail(email) || cap < 1 || cap > 500 || !opens || !closes || closes <= opens || !days.length) throw new HttpError(400, 'invalid');
   const phone = clean(b.phone, 40), area = clean(b.area, 60);
-  if (area.length < 3) throw new HttpError(400, 'invalid');
+  if (area.length < 3 || phone.replace(/\D/g, '').length < 6) throw new HttpError(400, 'invalid');
 
   const pasted = clean(b.coords, 600);
   let c = pasted ? await parseMapsPin(pasted).catch(() => null) : null;

@@ -3251,7 +3251,7 @@ function ownerPartnersView(){
     inp('ofAddr',T("Street address in Varna (optional)"),f.address,'autocomplete="off"')+
     inp('ofArea',T("Area shown to customers before they pay")+' *',f.area,'placeholder="near the Sea Garden" autocomplete="off"')+
     inp('ofContact',T("Contact person (optional)"),f.contact,'autocomplete="off"')+
-    inp('ofPhone',T("Phone (optional)"),f.phone,'inputmode="tel" autocomplete="off"')+
+    inp('ofPhone',T("Phone")+' *',f.phone,'inputmode="tel" autocomplete="off"')+
     inp('ofEmail',T("Email (used for their login)")+' *',f.email,'type="email" inputmode="email" autocomplete="off"')+
     inp('ofCap',T("How many bags can they hold at once")+' *',f.cap,'inputmode="numeric"')+
     '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofOpen">'+T("Opens")+' *</label><input id="ofOpen" class="big" type="time" value="'+esc(f.opens||'09:00')+'"></div><div style="flex:1"><label class="lab2" for="ofClose">'+T("Closes")+' *</label><input id="ofClose" class="big" type="time" value="'+esc(f.closes||'20:00')+'"></div></div>'+
@@ -3274,6 +3274,7 @@ function checkAddForm(f){
   need('ofName',f.name.length>=2);
   need('ofCoords',f.coords.length>=5);
   need('ofArea',f.area.length>=3);
+  need('ofPhone',f.phone.replace(/\D/g,'').length>=6);
   need('ofEmail',/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email));
   var c=parseInt(f.cap,10);need('ofCap',c>=1&&c<=500);
   need('ofOpen',!!f.opens);
@@ -3282,7 +3283,7 @@ function checkAddForm(f){
   return miss;
 }
 function addErr(j){
-  var m={invalid:T("Check the fields marked * : name, area, email, capacity, opening hours and days."),geocode_failed:T("No location found. Paste the Google Maps pin (Share link) of the place."),pin_unreadable:T("That pin could not be read. In Google Maps tap Share, copy the link and paste it here."),outside_varna:T("These coordinates are outside Varna."),email_taken:T("This email already belongs to another partner."),not_logged_in:T("Please log in again.")};
+  var m={invalid:T("Check the fields marked * : name, pin, area, phone, email, capacity, opening hours and days."),geocode_failed:T("No location found. Paste the Google Maps pin (Share link) of the place."),pin_unreadable:T("That pin could not be read. In Google Maps tap Share, copy the link and paste it here."),outside_varna:T("These coordinates are outside Varna."),email_taken:T("This email already belongs to another partner."),not_logged_in:T("Please log in again.")};
   return m[j&&j.error]||T("Something went wrong. Please try again.");
 }
 function ownerView(){
