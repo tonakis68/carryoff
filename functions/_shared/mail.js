@@ -86,10 +86,10 @@ export const tpl = {
   applicationNotice: (a) => ({
     kind: 'application_notice',
     subject: `New partner application: ${a.name}`,
-    text: `Reference ${a.ref}\n${a.name} (${a.type || '-'})\n${a.address}\nContact: ${a.contact}, ${a.phone}, ${a.email}\nCapacity: ${a.cap_pack} backpacks, ${a.cap_med} medium, ${a.cap_large} large\nHours: ${a.opens}-${a.closes}`,
+    text: `Reference ${a.ref}\n${a.name} (${a.type || '-'})\n${a.address}\nContact: ${a.contact}, ${a.phone}, ${a.email}\nCapacity: ${a.cap_pack} backpacks, ${a.cap_med} carry-on, ${a.cap_large} large\nHours: ${a.opens}-${a.closes}`,
     html: wrap('New partner application',
       `<p><b>${esc(a.name)}</b> (${esc(a.type || '-')})<br>${esc(a.address)}</p><p>Contact: ${esc(a.contact)}<br>${esc(a.phone)}<br>${esc(a.email)}</p>` +
-      `<p>Capacity: ${a.cap_pack} backpacks, ${a.cap_med} medium, ${a.cap_large} large<br>Hours: ${esc(a.opens)}–${esc(a.closes)}</p><p>Reference: <b>${esc(a.ref)}</b></p>`),
+      `<p>Capacity: ${a.cap_pack} backpacks, ${a.cap_med} carry-on, ${a.cap_large} large<br>Hours: ${esc(a.opens)}–${esc(a.closes)}</p><p>Reference: <b>${esc(a.ref)}</b></p>`),
   }),
   // Sent when the owner adds a partner: how to log in and what to do. English first, Bulgarian below.
   partnerWelcome: (b) => ({
