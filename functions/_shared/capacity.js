@@ -22,12 +22,14 @@ export async function bookedBags(env, { from, partnerId } = {}) {
 const minOf = (t) => +t.slice(0, 2) * 60 + +t.slice(3);
 export const LAST_PICKUP_MARGIN = 30; // pick-up at least 30 minutes before closing
 
-// Is the place open for this drop-off and pick-up? hours: 7 entries, Sunday first, [open, close] or null.
+// Is the place open for this drop-off and pick-up? hours: 7 entries, Sunday first, [open, close] or [open, close, breakStart, breakEnd] or null.
 export function openFor(hours, date, dropTime, pickTime) {
   if (!Array.isArray(hours) || hours.length !== 7) return true; // no hours stored yet: do not block
   const h = hours[new Date(date + 'T12:00:00Z').getUTCDay()];
   if (!h) return false;
   const allDay = h[0] === '00:00' && h[1] === '24:00';
   const margin = allDay ? 0 : LAST_PICKUP_MARGIN;
-  return minOf(dropTime) >= minOf(h[0]) && minOf(dropTime) <= minOf(h[1]) - margin && minOf(pickTime) >= minOf(h[0]) && minOf(pickTime) <= minOf(h[1]) - margin;
+  const inBreak = (t) => h[2] && h[3] && minOf(t) >= minOf(h[2]) && minOf(t) < minOf(h[3]); // lunch break: [start, end)
+  const ok = (t) => minOf(t) >= minOf(h[0]) && minOf(t) <= minOf(h[1]) - margin && !inBreak(t);
+  return ok(dropTime) && ok(pickTime);
 }

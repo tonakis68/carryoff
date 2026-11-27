@@ -39,6 +39,8 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const cap = Math.floor(+b.cap || 0), opens = hhmm(b.opens), closes = hhmm(b.closes);
   const days = Array.isArray(b.days) ? [...new Set(b.days.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))] : [];
   if (name.length < 2 || !isEmail(email) || cap < 1 || cap > 500 || !opens || !closes || closes <= opens || !days.length) throw new HttpError(400, 'invalid');
+  const bFrom = hhmm(b.bfrom), bTo = hhmm(b.bto), hasBreak = !!(b.bfrom || b.bto);
+  if (hasBreak && (!bFrom || !bTo || bFrom >= bTo || bFrom <= opens || bTo >= closes)) throw new HttpError(400, 'invalid');
   const phone = clean(b.phone, 40), area = clean(b.area, 60);
   if (area.length < 3 || phone.replace(/\D/g, '').length < 6) throw new HttpError(400, 'invalid');
 
@@ -53,7 +55,8 @@ export const onRequestPost = handler(async ({ request, env }) => {
   let id = slug(name);
   for (let i = 2; taken.has(id); i++) id = `${slug(name).slice(0, 20)}-${i}`;
   const pin = publicPin(id, c);
-  const hours = [0, 1, 2, 3, 4, 5, 6].map((d) => (days.includes(d) ? [opens, closes] : null));
+  const day = hasBreak ? [opens, closes, bFrom, bTo] : [opens, closes];
+  const hours = [0, 1, 2, 3, 4, 5, 6].map((d) => (days.includes(d) ? day : null));
   if ((await db.select(env, 'partners', { filters: { email: eq(email) }, select: 'id', limit: 1 })).length) throw new HttpError(409, 'email_taken');
   const row = {
     id, name, email, phone, address, contact: clean(b.contact, 120), type: clean(b.type, 60), area, descr: clean(b.desc, 300),

@@ -2757,7 +2757,8 @@ function freeOn(loc,day){
   return Math.max(0,loc.cap-(state.booked[loc.id+day]||0));
 }
 function stayDays(){var out=[],d=parse(state.drop.date),end=parse(state.pick.date);for(var i=0;i<=31&&d<=end;i++){out.push(iso(d));d=addDays(d,1)}return out}
-function isOpen(loc,date,time,margin){var h=loc.hours[parse(date).getDay()];if(!h)return false;var t=minOf(time),m=(h[0]==='00:00'&&h[1]==='24:00')?0:(margin||0);return t>=minOf(h[0])&&t<=minOf(h[1])-m}
+function isOpen(loc,date,time,margin){var h=loc.hours[parse(date).getDay()];if(!h)return false;var t=minOf(time),m=(h[0]==='00:00'&&h[1]==='24:00')?0:(margin||0);if(h[2]&&h[3]&&t>=minOf(h[2])&&t<minOf(h[3]))return false;return t>=minOf(h[0])&&t<=minOf(h[1])-m}
+function hoursTxt(h){return h[2]&&h[3]?h[0]+'–'+h[2]+', '+h[3]+'–'+h[1]:h[0]+'–'+h[1]}
 function evaluate(loc){
   if(!state.valid)return {status:'na',label:T("Check your details"),free:0,pin:'–'};
   if(loc.paused)return {status:'closed',label:T("Temporarily full"),free:0,pin:'–',closed:'paused'};
@@ -2777,7 +2778,7 @@ function priceFor(){
   return {tier:tier,lines:lines,total:Math.round(total*100)/100};
 }
 function lastPickup(loc,date){var h=loc.hours[parse(date).getDay()];if(!h)return '–';return (h[0]==='00:00'&&h[1]==='24:00')?T("any time"):tStr(minOf(h[1])-MARGIN)}
-function todayHours(loc,date){var h=loc.hours[parse(date).getDay()];return h?(h[0]==='00:00'&&h[1]==='24:00'?T("Open 24 hours"):h[0]+'–'+h[1]):T("Closed")}
+function todayHours(loc,date){var h=loc.hours[parse(date).getDay()];return h?(h[0]==='00:00'&&h[1]==='24:00'?T("Open 24 hours"):hoursTxt(h)):T("Closed")}
 
 /* ---------- map ---------- */
 /* ---------- map (Leaflet + OpenStreetMap). Only this block draws the map, so it can be swapped for Google Maps later. ---------- */
@@ -2924,7 +2925,7 @@ function whyNot(l,ev){
 }
 function hoursRows(l){
   var today=state.valid?parse(state.drop.date).getDay():new Date().getDay(),order=[1,2,3,4,5,6,0];
-  return order.map(function(d){var h=l.hours[d];return '<div'+(d===today?' class="today"':'')+'><span>'+DAYN[d]+'</span><span>'+(h?(h[0]==='00:00'&&h[1]==='24:00'?'24 h':h[0]+'–'+h[1]):T("Closed"))+'</span></div>'}).join('');
+  return order.map(function(d){var h=l.hours[d];return '<div'+(d===today?' class="today"':'')+'><span>'+DAYN[d]+'</span><span>'+(h?(h[0]==='00:00'&&h[1]==='24:00'?'24 h':hoursTxt(h)):T("Closed"))+'</span></div>'}).join('');
 }
 function strip(l){
   var start=state.valid?parse(state.drop.date):new Date(),inr={},n=nBags(),h='<div class="strip" role="img" aria-label="Free spaces per day">';
@@ -3255,6 +3256,7 @@ function ownerPartnersView(){
     inp('ofEmail',T("Email (used for their login)")+' *',f.email,'type="email" inputmode="email" autocomplete="off"')+
     inp('ofCap',T("How many bags can they hold at once")+' *',f.cap,'inputmode="numeric"')+
     '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofOpen">'+T("Opens")+' *</label><input id="ofOpen" class="big" type="time" value="'+esc(f.opens||'09:00')+'"></div><div style="flex:1"><label class="lab2" for="ofClose">'+T("Closes")+' *</label><input id="ofClose" class="big" type="time" value="'+esc(f.closes||'20:00')+'"></div></div>'+
+    '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofBFrom">'+T("Lunch break from (optional)")+'</label><input id="ofBFrom" class="big" type="time" value="'+esc(f.bfrom||'')+'"></div><div style="flex:1"><label class="lab2" for="ofBTo">'+T("Lunch break to")+'</label><input id="ofBTo" class="big" type="time" value="'+esc(f.bto||'')+'"></div></div>'+
     '<div><span class="lab2">'+T("Open on")+' *</span><div id="odGroup">'+days+'</div><p class="note" style="margin:4px 0 0">'+T("For open around the clock, set 00:00 to 24:00.")+'</p></div>'+
     inp('ofDesc',T("One-line description for customers (optional)"),f.desc,'autocomplete="off"')+
     '<p class="note" id="reqNote" style="margin:0">* '+T("required")+'</p><button type="submit" class="btn" id="ofSave">'+T("Add partner and send welcome email")+'</button></form>'+msg+
@@ -3263,7 +3265,7 @@ function ownerPartnersView(){
 }
 function readAddForm(){
   var d=[];for(var i=0;i<7;i++)if($('#od'+i)&&$('#od'+i).checked)d.push(i);
-  return {appRef:(pv.addForm||{}).appRef||'',name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.trim(),email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
+  return {appRef:(pv.addForm||{}).appRef||'',name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.trim(),email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,bfrom:$('#ofBFrom').value,bto:$('#ofBTo').value,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
 }
 function checkAddForm(f){
   var miss=[];
@@ -3279,6 +3281,8 @@ function checkAddForm(f){
   var c=parseInt(f.cap,10);need('ofCap',c>=1&&c<=500);
   need('ofOpen',!!f.opens);
   need('ofClose',!!f.closes&&(!f.opens||f.closes>f.opens));
+  var bf=f.bfrom,bt=f.bto,bok=(!bf&&!bt)||(bf&&bt&&bf<bt&&(!f.opens||bf>f.opens)&&(!f.closes||bt<f.closes));
+  need('ofBFrom',bok);if(!bok)need('ofBTo',false);
   if(!f.days.length){var g=$('#odGroup');miss.push({el:g,lab:g.previousElementSibling,focus:false})}
   return miss;
 }
@@ -3471,7 +3475,7 @@ pa.addEventListener('submit',function(e){
       miss.forEach(function(m){m.el.classList.add('req-bad');m.lab.classList.add('req-bad-lab')});
       var first=miss[0];first.el.scrollIntoView({behavior:'smooth',block:'center'});
       if(first.focus!==false)setTimeout(function(){try{first.el.focus({preventScroll:true})}catch(x){}},350);
-      var note=$('#reqNote');if(note){note.className='why';note.textContent=T("Please fill in the fields marked in red.")+' ('+miss.length+')'}
+      var note=$('#reqNote');if(note){note.className='why';note.textContent=T("Please fill in or correct the fields marked in red.")+' ('+miss.length+')'}
       return;
     }
     btn.disabled=true;

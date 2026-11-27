@@ -453,6 +453,13 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
     await eq2('https://maps.google.com/?q=43.2012,27.9033', 43.2012, 27.9033);
     assert.equal(await parseMapsPin('hello there'), null);
     ok('Google Maps pins (share links and coordinates) are read'); }
+  assert.equal((await add({ ...base, name: 'Lunch A', email: 'la@example.com', bfrom: '13:00' })).status, 400); ok('lunch break needs both times');
+  assert.equal((await add({ ...base, name: 'Lunch B', email: 'lb@example.com', bfrom: '14:00', bto: '13:00' })).status, 400); ok('lunch break must end after it starts');
+  { const r = await add({ ...base, name: 'Lunch Shop', email: 'lunch@example.com', coords: '43.21, 27.91', bfrom: '12:30', bto: '13:30' }); assert.equal(r.status, 201);
+    const row = tables.partners.find((p) => p.email === 'lunch@example.com'); assert.deepEqual(row.hours[2], ['08:00', '20:00', '12:30', '13:30']); assert.equal(row.hours[0], null); ok('lunch break is stored on every open day');
+    const { openFor } = await import('../functions/_shared/capacity.js'); const tue = '2030-01-01';
+    assert.equal(openFor(row.hours, tue, '12:00', '15:00'), true); assert.equal(openFor(row.hours, tue, '13:00', '15:00'), false); assert.equal(openFor(row.hours, tue, '09:00', '12:30'), false); assert.equal(openFor(row.hours, tue, '13:30', '15:00'), true);
+    ok('no drop-off or pick-up during the lunch break'); }
   assert.equal((await add({ ...base, coords: 'not a pin' })).status, 422); ok('unreadable pin is refused');
   { const r = await add({ ...base, name: 'No Address Shop', email: 'noaddr@example.com', address: '', coords: 'https://www.google.com/maps/place/X/@43.2150,27.9100,17z' }); assert.equal(r.status, 201); ok('address is optional when a pin is pasted'); }
   geoResult = [{ lat: '43.2051', lon: '27.9102' }]; outbox.length = 0;
