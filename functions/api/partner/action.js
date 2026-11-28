@@ -29,14 +29,14 @@ export const onRequestPost = handler(async ({ request, env }) => {
     if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(photo) || photo.length > 300000) throw new HttpError(400, 'bad_photo');
     const done = await db.update(env, 'bookings', where('booked'), { status: 'stored', tags, photo_data: photo, stored_at: new Date().toISOString() });
     const origin = new URL(request.url).origin, k = await bookToken(env, ref);
-    if (done.length) await sendMail(env, { to: bk.customer_email, ...tpl.bagsReceived({ ref, qrUrl: `${origin}/api/qr?ref=${ref}&k=${k}`, bookingUrl: `${origin}/?paid=${ref}&k=${k}`, place: partner.name || '', bags, tags: tags.join(', '), tagCount: tags.length, lastPickup: `${new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(bk.pick_date + 'T00:00:00Z'))}, ${bk.pick_time}` }) });
+    if (done.length) await sendMail(env, { to: bk.customer_email, ...tpl.bagsReceived({ ref, name: bk.customer_name, qrUrl: `${origin}/api/qr?ref=${ref}&k=${k}`, bookingUrl: `${origin}/?paid=${ref}&k=${k}`, place: partner.name || '', bags, tags: tags.join(', '), tagCount: tags.length, lastPickup: `${new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(bk.pick_date + 'T00:00:00Z'))}, ${bk.pick_time}` }) });
     return json({ ok: true, status: 'stored', at: new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Sofia', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()) });
   }
 
   if (b.action === 'return') {
     if (bk.status !== 'stored') throw new HttpError(409, 'wrong_status');
     const done = await db.update(env, 'bookings', where('stored'), { status: 'returned', returned_at: new Date().toISOString(), photo_data: null });
-    if (done.length) await sendMail(env, { to: bk.customer_email, ...tpl.bagsReturned() });
+    if (done.length) await sendMail(env, { to: bk.customer_email, ...tpl.bagsReturned({ name: bk.customer_name }) });
     return json({ ok: true, status: 'returned' });
   }
 
@@ -47,7 +47,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
     if (bk.payment_intent) await refundPayment(env, { paymentIntent: bk.payment_intent, ref });
     else console.error('refuse without payment_intent', ref); // booking paid before stage 3: refund it by hand in Stripe
     const done = await db.update(env, 'bookings', { ref: eq(ref), partner_id: eq(s.sub), status: `in.(booked,stored)` }, { status: 'refused', refunded_at: bk.payment_intent ? new Date().toISOString() : null, photo_data: null });
-    if (done.length) await sendMail(env, { to: bk.customer_email, ...tpl.bagsRefused() });
+    if (done.length) await sendMail(env, { to: bk.customer_email, ...tpl.bagsRefused({ name: bk.customer_name }) });
     return json({ ok: true, status: 'refused', refunded: !!bk.payment_intent });
   }
   throw new HttpError(400, 'bad_action');

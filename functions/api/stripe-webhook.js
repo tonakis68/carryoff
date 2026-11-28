@@ -34,7 +34,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
     const origin = new URL(request.url).origin;
     const k = await bookToken(env, ref);
     await sendMail(env, { to: booking.customer_email, ...tpl.bookingConfirmed({
-      ref, place: partner.name || '', address: partner.address || '', lat: partner.lat, lng: partner.lng,
+      ref, name: booking.customer_name, place: partner.name || '', address: partner.address || '', lat: partner.lat, lng: partner.lng,
       date: booking.drop_date, dropTime: booking.drop_time, pickTime: booking.pick_time,
       bags: booking.n_pack + booking.n_med + booking.n_large, total: (booking.total_cents / 100).toFixed(2),
       qrUrl: `${origin}/api/qr?ref=${ref}&k=${k}`, bookingUrl: `${origin}/?paid=${ref}&k=${k}`,

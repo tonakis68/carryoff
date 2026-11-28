@@ -76,6 +76,11 @@ const wrap = (title, body) =>
   `<div style="background:#fff;border-radius:12px;padding:24px"><h1 style="font-size:20px;margin:0 0 12px">${esc(title)}</h1>${body}</div>` +
   `<p style="font-size:12px;color:#5b6784">© ${new Date().getFullYear()} CarryOff. All rights reserved. · Varna, Bulgaria</p></div></body></html>`;
 
+// First name only, tidied; empty when we have none, so emails still read well.
+const first = (n) => String(n || '').trim().split(/\s+/)[0].slice(0, 40);
+const hi = (n) => (first(n) ? `Hi ${esc(first(n))},` : 'Hello,');
+const hiText = (n) => (first(n) ? `Hi ${first(n)},` : 'Hello,');
+
 export const tpl = {
   loginCode: (code) => ({
     kind: 'login_code',
@@ -109,9 +114,10 @@ export const tpl = {
     return {
       kind: 'booking_confirmed',
       subject: `Your CarryOff booking ${b.ref} is confirmed`,
-      text: `Booking ${b.ref} is confirmed and paid (EUR ${b.total}).\nPlace: ${b.place}, ${b.address}\nDrop-off ${b.date} at ${b.dropTime}. Pick up the same day by ${b.pickTime}.\n` +
+      text: `${hiText(b.name)}\n\nThank you for choosing CarryOff. Your booking ${b.ref} is confirmed and paid (EUR ${b.total}).\nPlace: ${b.place}, ${b.address}\nDrop-off ${b.date} at ${b.dropTime}. Pick up the same day by ${b.pickTime}.\n` +
         (dir ? `Directions: ${dir}\n` : '') + `Your booking: ${b.bookingUrl}\nShow the booking code ${b.ref} when you drop off. Keep your passport, keys, phone, cash, medication and electronics with you: bags cannot be opened while stored.`,
       html: wrap('Booking confirmed',
+        `<p style="margin:0 0 12px">${hi(b.name)}<br>Thank you for choosing CarryOff. Your bags are in good hands, and everything you need is below.</p>` +
         `<p style="margin:0 0 4px">Your booking code:</p><p style="font-size:28px;font-weight:700;letter-spacing:3px;margin:0 0 12px">${esc(b.ref)}</p>` +
         `<p style="margin:0 0 12px"><img src="${esc(b.qrUrl)}" width="180" height="180" alt="QR code for booking ${esc(b.ref)}" style="display:block;border:1px solid #e3e8f4;border-radius:8px"></p>` +
         `<p style="margin:0 0 4px"><b>${esc(b.place)}</b><br>${esc(b.address)}</p>` +
@@ -125,9 +131,10 @@ export const tpl = {
     return {
       kind: 'bags_received',
       subject: `Your bags are stored at ${b.place}`,
-      text: `Your ${b.bags === 1 ? 'bag is' : `bags (${b.bags}) are`} stored at ${b.place}. ${label}: ${b.tags}. Last pick-up ${b.lastPickup}.\n` +
+      text: `${hiText(b.name)}\n\nThank you for trusting us with your luggage. Your ${b.bags === 1 ? 'bag is' : `bags (${b.bags}) are`} stored at ${b.place}. ${label}: ${b.tags}. Last pick-up ${b.lastPickup}.\n` +
         `When you collect your bags, show your booking code ${b.ref} or this link: ${b.bookingUrl}`,
       html: wrap('Your bags are stored',
+        `<p style="margin:0 0 12px">${hi(b.name)}<br>Thank you for trusting us with your luggage. It is safe now, so enjoy your day.</p>` +
         `<p style="margin:0 0 12px">At <b>${esc(b.place)}</b>. ${label}: <b>${esc(b.tags)}</b>.</p>` +
         `<p style="margin:0 0 12px">Last pick-up: <b>${esc(b.lastPickup)}</b>.</p>` +
         `<p style="margin:0 0 4px"><b>When you collect your bags, show this QR code</b> and your photo ID. The place scans it to find your booking.</p>` +
@@ -136,16 +143,16 @@ export const tpl = {
         `<p style="margin:0"><a href="${esc(b.bookingUrl)}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:700">View my booking</a></p>`),
     };
   },
-  bagsReturned: () => ({
+  bagsReturned: (b = {}) => ({
     kind: 'bags_returned',
     subject: 'Your bags were handed back',
-    text: 'Thank you for using CarryOff. We hope you enjoyed Varna.',
-    html: wrap('Your bags were handed back', '<p>Thank you for using CarryOff. We hope you enjoyed Varna.</p>'),
+    text: `${hiText(b.name)}\n\nYour bags were handed back. Thank you for being our customer. We hope you enjoyed Varna, and we would be happy to look after your bags again.`,
+    html: wrap('Thank you for being our customer', `<p>${hi(b.name)}</p><p>Your bags were handed back. Thank you for being our customer. We hope you enjoyed Varna, and we would be happy to look after your bags again.</p>`),
   }),
-  bagsRefused: () => ({
+  bagsRefused: (b = {}) => ({
     kind: 'bags_refused',
     subject: 'Your bags could not be stored',
-    text: 'The place could not accept your bags. Your payment is refunded in full.',
-    html: wrap('Your bags could not be stored', '<p>The place could not accept your bags. Your payment is refunded in full.</p>'),
+    text: `${hiText(b.name)}\n\nWe are sorry: the place could not accept your bags. Your payment is refunded in full. Thank you for your understanding, and please book another place if you still need storage.`,
+    html: wrap('Your bags could not be stored', `<p>${hi(b.name)}</p><p>We are sorry: the place could not accept your bags. Your payment is refunded in full. Thank you for your understanding, and please book another place if you still need storage.</p>`),
   }),
 };
