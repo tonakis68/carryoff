@@ -2903,7 +2903,7 @@ function listView(){
     h+='<button type="button" class="loc" data-act="open" data-id="'+l.id+'">'+
       '<div class="loc-top"><span class="loc-name">'+esc(nm(l))+'</span>'+pill(ev)+'</div>'+
       '<div class="loc-meta"><span>'+esc(shown(l)?T(l.type):T('Exact place shown after you book'))+'</span><span>'+tp('Rail {0} min walk · Bus {1} min walk',l.tt.rail.walk,l.tt.bus.walk)+'</span></div>'+
-      '<div class="loc-bot"><span>'+esc(tp('{0} on {1}',todayHours(l,day),dLab(day)))+("</span>"+"<span class=\"price\">"+"<small>"+T("from")+"</small>"+" ")+fmt.format(4)+(" "+"<small>"+T("per bag")+"</small>"+"</span>"+"</div>"+"</button>");
+      '<div class="loc-bot"><span>'+esc(tp('{0} on {1}',todayHours(l,day),dLab(day)))+("</span>"+"<span class=\"price\">"+"<small>"+T("from")+"</small>"+" ")+fmt.format(3.99)+(" "+"<small>"+T("per bag")+"</small>"+"</span>"+"</div>"+"</button>");
   });
   return h+'</div>';
 }
