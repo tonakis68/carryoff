@@ -454,6 +454,8 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
     await eq2('Café Mosaic\nhttps://www.google.com/maps/place/Cafe/@43.2051,27.9102,17z/data=!3m1', 43.2051, 27.9102);
     await eq2('https://www.google.com/maps/place/X/data=!4m6!3d43.2111!4d27.9222', 43.2111, 27.9222);
     await eq2('https://maps.google.com/?q=43.2012,27.9033', 43.2012, 27.9033);
+    await eq2('43°12\'23.0"N 27°54\'31.1"E', 43.206389, 27.908639);
+    await eq2('43°12′23.0″N, 27°54′31.1″E', 43.206389, 27.908639);
     assert.equal(await parseMapsPin('hello there'), null);
     ok('Google Maps pins (share links and coordinates) are read'); }
   assert.equal((await add({ ...base, name: 'Lunch A', email: 'la@example.com', bfrom: '13:00' })).status, 400); ok('lunch break needs both times');

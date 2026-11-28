@@ -14,6 +14,16 @@ export function parseCoords(s) {
   return m ? { lat: +m[1], lng: +m[2] } : null;
 }
 
+// Degrees, minutes, seconds as Google Maps shows them: 43°12'23.0"N 27°54'31.1"E
+const DMS = /(\d{1,3})\s*[°º]\s*(\d{1,2})\s*['′’]\s*(\d{1,2}(?:\.\d+)?)\s*(?:["″”]|'')?\s*([NS])[\s,;]*(\d{1,3})\s*[°º]\s*(\d{1,2})\s*['′’]\s*(\d{1,2}(?:\.\d+)?)\s*(?:["″”]|'')?\s*([EW])/i;
+export function parseDMS(s) {
+  const m = String(s || '').match(DMS);
+  if (!m) return null;
+  const lat = (+m[1] + m[2] / 60 + m[3] / 3600) * (/s/i.test(m[4]) ? -1 : 1);
+  const lng = (+m[5] + m[6] / 60 + m[7] / 3600) * (/w/i.test(m[8]) ? -1 : 1);
+  return { lat: +lat.toFixed(6), lng: +lng.toFixed(6) };
+}
+
 export const inVarna = (c) => c.lat > 43.10 && c.lat < 43.32 && c.lng > 27.75 && c.lng < 28.10;
 
 // The public pin sits 40 to 90 m from the real door, always the same for one partner, so it never gives the exact place away.
@@ -27,6 +37,8 @@ export function publicPin(id, c) {
 // Whatever Google Maps gives when you share a pin: plain "43.2, 27.9", a long link (…@43.2,27.9,17z / …!3d43.2!4d27.9 / …?q=43.2,27.9),
 // or a short maps.app.goo.gl link, with or without the place name the phone puts in front of it.
 function fromText(t) {
+  const dms = parseDMS(t);
+  if (dms) return dms;
   let m = t.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/);
   if (!m) m = t.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
   if (!m) m = t.match(/[?&](?:q|query|ll|destination|center)=(-?\d{1,3}\.\d+)(?:,|%2C)\s*(-?\d{1,3}\.\d+)/i);
@@ -36,7 +48,7 @@ function fromText(t) {
 export async function parseMapsPin(input) {
   const raw = String(input || '').trim();
   if (!raw) return null;
-  const plain = parseCoords(raw);
+  const plain = parseCoords(raw) || parseDMS(raw);
   if (plain) return plain;
   let url = (raw.match(/https?:\/\/[^\s<>"']+/) || [])[0];
   let text = raw;
