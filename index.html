@@ -3585,7 +3585,8 @@ function showView(v,setHash){
   window.scrollTo(0,0);
 }
 navBtns.forEach(function(b){b.addEventListener('click',function(){showView(b.getAttribute('data-v'),true)})});
-window.addEventListener('hashchange',function(){showView(location.hash==='#partners'?'partners':'book',false)});
+function hv(){var h=location.hash;if(h==='#apply'){pv.tab='signup';pv.applied=null;return 'partners'}return h==='#partners'?'partners':'book'}
+window.addEventListener('hashchange',function(){showView(hv(),false)});
 
 
 /* ---------- language ---------- */
@@ -3674,7 +3675,7 @@ api('/api/partners').then(function(j){
 setLang(initLang);
 try{$('#yr').textContent=new Date().getFullYear()}catch(e){}
 
-if(location.hash==='#partners')showView('partners',false);
+if(hv()==='partners')showView('partners',false);
 })();
 </script>
 <script>
