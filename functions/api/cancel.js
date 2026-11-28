@@ -5,7 +5,7 @@ import { canCancelFree } from '../_shared/pricing.js';
 import { refundPayment } from '../_shared/stripe.js';
 import { HttpError, handler, json, needEnv, readJson, requireSameOrigin, timingEq } from '../_shared/util.js';
 
-// A customer cancels their own booking. Allowed until 3 days before the drop-off time; the payment is refunded in full.
+// A customer cancels their own booking. Allowed until the drop-off time; the payment is refunded in full.
 export const onRequestPost = handler(async ({ request, env }) => {
   requireSameOrigin(request);
   needEnv(env, ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'STRIPE_SECRET_KEY']);
