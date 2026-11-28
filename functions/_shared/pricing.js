@@ -23,13 +23,14 @@ export function priceCents(items, durMin) {
   return total;
 }
 
-// Free cancellation closes this many minutes before the drop-off time (0 = it runs until the drop-off time itself).
-export const CANCEL_MIN = 0;
+// Free cancellation closes this many minutes before the drop-off time (2 hours).
+export const CANCEL_MIN = 120;
 const dayN = (d) => Math.floor(Date.parse(d + 'T00:00:00Z') / 864e5);
 export function canCancelFree(dropDate, dropTime, now = nowInVarna()) {
   return (dayN(dropDate) - dayN(now.date)) * 1440 + minOf(dropTime) - now.minutes >= CANCEL_MIN;
 }
 // The last date and time (Varna) at which a customer can still cancel for a full refund.
 export function cancelDeadline(dropDate, dropTime) {
-  return { date: dropDate, time: dropTime };
+  const t = dayN(dropDate) * 1440 + minOf(dropTime) - CANCEL_MIN, m = ((t % 1440) + 1440) % 1440;
+  return { date: new Date(Math.floor(t / 1440) * 864e5).toISOString().slice(0, 10), time: `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` };
 }
