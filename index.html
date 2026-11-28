@@ -270,6 +270,7 @@ html[lang=ja] body,html[lang=zh] body{word-break:auto-phrase;line-break:strict}
 .tiers thead th:first-child{width:auto}
 .tiers tbody th{min-width:0}
 .plwrap{container-type:inline-size}
+.plist tbody tr{transition:background .12s}.plist tbody tr.plhl{background:var(--surface-2);box-shadow:inset 0 0 0 2px var(--accent)}
 @container (max-width:1000px){.plist thead{display:none}.plist,.plist tbody,.plist tr,.plist th,.plist td{display:block;width:100%}.plist tr{border-top:1px solid var(--line);padding:10px 0}.plist tbody th,.plist td{border:0;text-align:left;white-space:normal;padding:3px 0}.plist td[data-l]::before{content:attr(data-l) ": ";color:var(--ink-2);font-size:11px;text-transform:uppercase;letter-spacing:.04em}.plist td .pbtns{flex-direction:row!important;min-width:0!important;margin-top:6px}.plist td .pbtns .btn{flex:1;width:auto}}
 @media (max-width:420px){.tiers th,.tiers td{padding:7px 6px}.tiers thead th{white-space:normal;line-height:1.25;letter-spacing:.03em;font-size:10.5px}.tiers{font-size:12.5px}.bname{gap:6px}.bi svg{width:20px;height:20px}}
 .bname{display:flex;align-items:center;gap:8px}
@@ -3367,7 +3368,8 @@ function parseCoordsText(t){
   var m=t.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/)||t.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/)||t.match(/[?&](?:q|query|ll|destination|center)=(-?\d{1,3}\.\d+)(?:,|%2C)\s*(-?\d{1,3}\.\d+)/i)||t.match(/(-?\d{1,3}\.\d{3,})\s*[,; ]\s*(-?\d{1,3}\.\d{3,})/);
   return m?[+m[1],+m[2]]:null;
 }
-var ownMap=null;
+var ownMap=null,ownMk={};
+function plHl(id,on){var tr=document.querySelector('.plist tr[data-pid="'+(window.CSS&&CSS.escape?CSS.escape(id):id)+'"]');if(tr)tr.classList.toggle('plhl',on);var m=ownMk[id];if(m)m.setStyle({radius:on?16:12})}
 function ownerMap(){
   var box=$('#ownMap');
   if(ownMap){try{ownMap.remove()}catch(x){}ownMap=null}
@@ -3375,12 +3377,17 @@ function ownerMap(){
   var cs=getComputedStyle(document.documentElement),okc=cs.getPropertyValue('--ok-solid').trim()||'#17794d',badc=cs.getPropertyValue('--bad-solid').trim()||'#b3382f';
   ownMap=L.map(box,{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([43.2141,27.9147],13);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(ownMap);
-  var g=L.featureGroup().addTo(ownMap);
+  var g=L.featureGroup().addTo(ownMap);ownMk={};
   (pv.ownPartners||[]).forEach(function(p){
     if(p.lat==null||p.lng==null)return;
     var m=L.circleMarker([p.lat,p.lng],{radius:12,weight:3,color:'#fff',fillColor:p.active?okc:badc,fillOpacity:1}).addTo(g);
+    ownMk[p.id]=m;
+    m.on('mouseover',function(){plHl(p.id,true)});m.on('mouseout',function(){if(!m.isPopupOpen())plHl(p.id,false)});
+    m.on('popupopen',function(){plHl(p.id,true)});
+    m.on('popupclose',function(){plHl(p.id,false)});
     m.bindPopup('<div style="min-width:140px"><b>'+esc(p.name)+'</b><br><span>'+(p.active?(p.paused?T("Paused"):'Live'):'Offline')+'</span><br><button type="button" class="btn" data-pact="'+esc(p.id)+'" data-on="'+(p.active?'0':'1')+'" style="margin-top:8px;min-height:36px;padding:4px 10px;border-color:transparent;background:var(--'+(p.active?'bad':'ok')+'-solid);color:var(--on-solid)">'+(p.active?'Switch off':'Switch on')+'</button></div>');
   });
+  document.querySelectorAll('.plist tr[data-pid]').forEach(function(tr){var id=tr.getAttribute('data-pid');tr.addEventListener('mouseenter',function(){plHl(id,true)});tr.addEventListener('mouseleave',function(){var m=ownMk[id];if(!m||!m.isPopupOpen())plHl(id,false)})});
   ownMap.on('popupopen',function(e){ /* Leaflet stops clicks inside popups from bubbling, so bind the button here */
     var b=e.popup.getElement().querySelector('[data-pact]');if(!b)return;
     b.addEventListener('click',function(){b.disabled=true;api('/api/owner/partners',{action:'set_active',id:b.getAttribute('data-pact'),active:b.getAttribute('data-on')==='1'}).then(function(){loadOwnerPartners()})});
@@ -3436,7 +3443,7 @@ function ownerPartnersView(){
   function inp(id,label,val,extra){return '<div><label class="lab2" for="'+id+'">'+label+'</label><input id="'+id+'" class="big" value="'+esc(val||'')+'" '+(extra||'')+'></div>'}
   var days=DAYN.map(function(d,i){var on=f.days?f.days.indexOf(i)>-1:true;return '<label class="chk" style="margin-right:10px"><input type="checkbox" id="od'+i+'"'+(on?' checked':'')+'> '+T(d)+'</label>'}).join('');
   var list=(pv.ownPartners||[]).map(function(p){
-    return '<tr><th scope="row">'+esc(p.name)+'<br><span class="note">'+esc(p.area||'')+'</span></th><td data-l="'+esc(T("Login email"))+'">'+esc(p.email)+'</td><td data-l="'+esc(T("Status"))+'">'+(p.active?(p.paused?T("Paused"):T("Live")):T("Off"))+'</td><td data-l="'+esc(T("Stored / spaces"))+'">'+usageCell(p)+'</td><td><div class="pbtns" style="display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:120px"><button type="button" class="btn sec2" data-pact="'+esc(p.id)+'" title="'+esc(p.active?T("Switch off"):T("Switch on"))+'" data-on="'+(p.active?'0':'1')+'" style="min-height:36px;padding:4px 10px;border-color:transparent;background:var(--'+(p.active?'ok':'bad')+'-solid);color:var(--on-solid)">'+(p.active?'Live':'Offline')+'</button>'+'<button type="button" class="btn sec2" data-pedit="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px">Edit</button>'+(pv.delAsk===p.id?'<button type="button" class="btn" data-pdel="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px;background:var(--bad);color:#fff">'+'Tap again to remove for good</button>':'<button type="button" class="btn sec2" data-pdel="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px">Remove</button>')+'</div></td></tr>'}).join('');
+    return '<tr data-pid="'+esc(p.id)+'"><th scope="row">'+esc(p.name)+'<br><span class="note">'+esc(p.area||'')+'</span></th><td data-l="'+esc(T("Login email"))+'">'+esc(p.email)+'</td><td data-l="'+esc(T("Status"))+'">'+(p.active?(p.paused?T("Paused"):T("Live")):T("Off"))+'</td><td data-l="'+esc(T("Stored / spaces"))+'">'+usageCell(p)+'</td><td><div class="pbtns" style="display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:120px"><button type="button" class="btn sec2" data-pact="'+esc(p.id)+'" title="'+esc(p.active?T("Switch off"):T("Switch on"))+'" data-on="'+(p.active?'0':'1')+'" style="min-height:36px;padding:4px 10px;border-color:transparent;background:var(--'+(p.active?'ok':'bad')+'-solid);color:var(--on-solid)">'+(p.active?'Live':'Offline')+'</button>'+'<button type="button" class="btn sec2" data-pedit="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px">Edit</button>'+(pv.delAsk===p.id?'<button type="button" class="btn" data-pdel="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px;background:var(--bad);color:#fff">'+'Tap again to remove for good</button>':'<button type="button" class="btn sec2" data-pdel="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px">Remove</button>')+'</div></td></tr>'}).join('');
   return '<div class="pcol"><div class="panel-card"><div><h2>'+T("Storage partners")+'</h2><p class="sub">'+T("Owner view. Only you see this.")+'</p></div>'+
    '<button type="button" class="btn sec2" data-logout="1" style="align-self:flex-start">'+"Log out"+'</button>'+
    (open?'':'<button type="button" class="btn" data-addopen="1">Add partner</button>')+
