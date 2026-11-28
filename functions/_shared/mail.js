@@ -156,6 +156,12 @@ export const tpl = {
     text: `${hiText(b.name)}\n\nYour bags were handed back. Thank you for being our customer. We hope you enjoyed Varna, and we would be happy to look after your bags again.`,
     html: wrap('Thank you for being our customer', `<p>${hi(b.name)}</p><p>Your bags were handed back. Thank you for being our customer. We hope you enjoyed Varna, and we would be happy to look after your bags again.</p>`),
   }),
+  bookingCancelled: (b = {}) => ({
+    kind: 'booking_cancelled',
+    subject: 'Your booking was cancelled and refunded',
+    text: `${hiText(b.name)}\n\nYour booking ${b.ref} is cancelled and your payment is refunded in full to the card you used. It usually arrives within 5 to 10 working days. You are welcome to book again any time.`,
+    html: wrap('Booking cancelled', `<p>${hi(b.name)}</p><p>Your booking <b>${esc(b.ref || '')}</b> is cancelled and your payment is refunded in full to the card you used. It usually arrives within 5 to 10 working days. You are welcome to book again any time.</p>`),
+  }),
   bagsRefused: (b = {}) => ({
     kind: 'bags_refused',
     subject: 'Your bags could not be stored',

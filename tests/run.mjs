@@ -13,6 +13,7 @@ import * as apply from '../functions/api/apply.js';
 import * as checkout from '../functions/api/checkout.js';
 import * as webhook from '../functions/api/stripe-webhook.js';
 import * as bookingApi from '../functions/api/booking.js';
+import * as cancelApi from '../functions/api/cancel.js';
 import * as qrApi from '../functions/api/qr.js';
 import * as pBookings from '../functions/api/partner/bookings.js';
 import * as pAction from '../functions/api/partner/action.js';
@@ -414,6 +415,31 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   assert.equal(B.status, 'refused'); assert.equal(refunds.length, 1); assert.equal(refunds[0].payment_intent, 'pi_CO-BBBB2'); assert.equal(refunds[0].key, 'refund-CO-BBBB2');
   assert.match(outbox.at(-1).subject, /could not be stored/i); assert.ok(B.refunded_at); ok('refusing bags refunds the payment in full and tells the customer');
   assert.equal((await act(aurora, { ref: 'CO-BBBB2', action: 'refuse' })).status, 409); assert.equal(refunds.length, 1); ok('a refused booking cannot be refunded twice');
+
+  // customer cancels: free until 3 days before drop-off
+  {
+    const { bookToken } = await import('../functions/_shared/booktoken.js');
+    const inDays = (n) => new Date(Date.parse(today + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+    const far = mk('CO-CANC1', { drop_date: inDays(10), pick_date: inDays(10) }), soon = mk('CO-CANC2', { drop_date: inDays(2), pick_date: inDays(2) });
+    const edge = mk('CO-CANC3', { drop_date: inDays(4), pick_date: inDays(4) });
+    const kOf = (ref) => bookToken(env, ref);
+    let j2 = await (await get(bookingApi, null, `?ref=CO-CANC1&k=${await kOf('CO-CANC1')}`)).json();
+    assert.equal(j2.canCancel, true); assert.equal(j2.cancelBy.date, inDays(7));
+    j2 = await (await get(bookingApi, null, `?ref=CO-CANC2&k=${await kOf('CO-CANC2')}`)).json();
+    assert.equal(j2.canCancel, false); ok('the booking page says whether free cancellation is still open, and until when');
+    assert.equal((await post(cancelApi, { ref: 'CO-CANC1', k: 'wrong' })).status, 404);
+    assert.equal((await post(cancelApi, { ref: 'CO-CANC2', k: await kOf('CO-CANC2') })).status, 409); assert.equal(soon.status, 'booked'); assert.equal(refunds.length, 1);
+    ok('inside 3 days the cancel is refused: no refund, booking unchanged');
+    refundFails = true; assert.equal((await post(cancelApi, { ref: 'CO-CANC1', k: await kOf('CO-CANC1') })).status, 502); assert.equal(far.status, 'booked'); refundFails = false;
+    outbox.length = 0; r = await post(cancelApi, { ref: 'CO-CANC1', k: await kOf('CO-CANC1') });
+    assert.equal(r.status, 200); assert.equal(far.status, 'cancelled'); assert.ok(far.refunded_at); assert.equal(refunds.length, 2); assert.equal(refunds[1].payment_intent, 'pi_CO-CANC1');
+    assert.match(outbox.at(-1).subject, /cancelled and refunded/i);
+    assert.equal((await post(cancelApi, { ref: 'CO-CANC1', k: await kOf('CO-CANC1') })).status, 409); assert.equal(refunds.length, 2);
+    ok('cancelling in time refunds in full, frees the slot and emails the customer; a second tap does nothing');
+    j2 = await (await get(bookingApi, null, `?ref=CO-CANC1&k=${await kOf('CO-CANC1')}`)).json();
+    assert.equal(j2.refunded, true); assert.ok(j2.place); ok('a cancelled and refunded booking can still be opened');
+    assert.equal((await post(cancelApi, { ref: 'CO-CANC3', k: await kOf('CO-CANC3') })).status, 200); ok('4 days ahead is still free');
+  }
 
   const paused = await (await post(pPause, { paused: true }, aurora)).json(); assert.equal(paused.paused, true);
   assert.equal(tables.partners.find((x) => x.id === 'aurora').paused, true); await post(pPause, { paused: false }, aurora); ok('partner can pause and reopen new bookings');
