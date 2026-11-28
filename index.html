@@ -3275,7 +3275,7 @@ function ownerLogin(){
 }
 var DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function ownerSubnav(){
-  return '<div class="nav" role="group" aria-label="'+T("Owner sections")+'"><button type="button" data-osub="earn" aria-current="'+((pv.ownSub||'earn')==='earn')+'">'+T("Earnings")+'</button><button type="button" data-osub="partners" aria-current="'+(pv.ownSub==='partners')+'">'+T("Partners")+(pv.ownApps&&pv.ownApps.length?' ('+pv.ownApps.length+')':'')+'</button></div>';
+  return '<div class="nav" role="group" aria-label="'+T("Owner sections")+'"><button type="button" data-osub="earn" aria-current="'+((pv.ownSub||'earn')==='earn')+'">'+T("Earnings")+'</button><button type="button" data-osub="partners" aria-current="'+(pv.ownSub==='partners')+'">'+T("Partners")+'</button><button type="button" data-osub="apps" aria-current="'+(pv.ownSub==='apps')+'">'+T("Applications")+(pv.ownApps&&pv.ownApps.length?' ('+pv.ownApps.length+')':'')+'</button></div>';
 }
 var PDORD=[1,2,3,4,5,6,0];
 function pdOpts(sel,blank,full){var h=blank?'<option value=""></option>':'',m,t;for(m=0;m<=1440;m+=15){if(m===1440&&!full)break;t=m===1440?'24:00':tStr(m);h+='<option value="'+t+'"'+(t===sel?' selected':'')+'>'+t+'</option>'}return h}
@@ -3322,17 +3322,22 @@ function timeSel(id,val,kind){
   if(val&&o.indexOf(val)<0){o.push(val);o.sort()}
   return '<select id="'+id+'" class="big">'+o.map(function(v){return '<option value="'+v+'"'+(v===val?' selected':'')+'>'+(v||'–')+'</option>'}).join('')+'</select>';
 }
+function ownerAppsView(){
+  var VATL={yes:'yes',no:'no'};
+  var cards=(pv.ownApps||[]).map(function(a,i){
+    var hrs=Array.isArray(a.hours)?[1,2,3,4,5,6,0].filter(function(d){return a.hours[d]}).map(function(d){var h=a.hours[d];return esc(new Intl.DateTimeFormat('en',{weekday:'short'}).format(new Date(2024,0,7+d)))+' '+h[0]+'–'+h[1]+(h[2]?' (lunch '+h[2]+'–'+h[3]+')':'')}).join('<br>'):(a.opens?esc(a.opens)+'–'+esc(a.closes):'');
+    var det=[a.eik?'EIK '+esc(a.eik):'',a.reg_address?'Company address: '+esc(a.reg_address):'',a.rep_name?'Representative: '+esc(a.rep_name)+(a.rep_position?', '+esc(a.rep_position):''):'',a.vat?'VAT registered: '+esc(a.vat):''].filter(Boolean).join('<br>');
+    return '<div class="panel-card" style="padding:12px"><div><strong>'+esc(a.name)+'</strong> · '+esc(a.type||'')+'</div><div class="note">'+(det?det+'<br>':'')+esc(a.address)+'<br>'+esc(a.contact)+' · '+esc(a.phone)+' · '+esc(a.email)+'<br>'+tp('{0} backpacks, {1} carry-on bags, {2} large',a.cap_pack||0,a.cap_med||0,a.cap_large||0)+(hrs?'<br>'+hrs:'')+'<br>'+esc(a.ref)+'</div><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" data-useapp="'+i+'" style="min-height:40px">'+T("Use these details")+'</button><button type="button" class="btn sec2" data-rejectapp="'+esc(a.ref)+'" style="min-height:40px">'+T("Reject")+'</button></div></div>'}).join('');
+  return '<div class="pcol"><div class="panel-card"><div><h2>'+T("Pending applications")+'</h2><p class="sub">'+T("Businesses that applied to become a partner. Use the details to add them, or reject.")+'</p></div>'+(cards||'<div class="empty">'+T("No pending applications.")+'</div>')+'</div></div>';
+}
 function ownerPartnersView(){
   var f=pv.addForm||{},msg=pv.addMsg?'<p class="'+(pv.addMsg.ok?'okmsg':'why')+'" role="status" style="margin:0">'+pv.addMsg.t+'</p>':'';
   function inp(id,label,val,extra){return '<div><label class="lab2" for="'+id+'">'+label+'</label><input id="'+id+'" class="big" value="'+esc(val||'')+'" '+(extra||'')+'></div>'}
   var days=DAYN.map(function(d,i){var on=f.days?f.days.indexOf(i)>-1:true;return '<label class="chk" style="margin-right:10px"><input type="checkbox" id="od'+i+'"'+(on?' checked':'')+'> '+T(d)+'</label>'}).join('');
-  var apps=(pv.ownApps||[]).map(function(a,i){
-    return '<div class="panel-card" style="padding:12px"><strong>'+esc(a.name)+'</strong> · '+esc(a.type||'')+'<br><span class="note">'+esc(a.address)+'<br>'+esc(a.contact)+' · '+esc(a.phone)+' · '+esc(a.email)+'</span><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" data-useapp="'+i+'" style="min-height:40px">'+T("Use these details")+'</button><button type="button" class="btn sec2" data-rejectapp="'+esc(a.ref)+'" style="min-height:40px">'+T("Reject")+'</button></div></div>'}).join('');
   var list=(pv.ownPartners||[]).map(function(p){
     return '<tr><th scope="row">'+esc(p.name)+'<br><span class="note">'+esc(p.area||'')+'</span></th><td>'+esc(p.email)+'</td><td>'+(p.active?(p.paused?T("Paused"):T("Live")):T("Off"))+'</td><td><div style="display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:120px"><button type="button" class="btn sec2" data-pact="'+esc(p.id)+'" data-on="'+(p.active?'0':'1')+'" style="min-height:36px;padding:4px 10px">'+(p.active?T("Switch off"):T("Switch on"))+'</button>'+'<button type="button" class="btn sec2" data-pedit="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px">'+T("Edit")+'</button>'+(pv.delAsk===p.id?'<button type="button" class="btn" data-pdel="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px;background:var(--bad);color:#fff">'+T("Tap again to remove for good")+'</button>':'<button type="button" class="btn sec2" data-pdel="'+esc(p.id)+'" style="min-height:36px;padding:4px 10px">'+T("Remove")+'</button>')+'</div></td></tr>'}).join('');
   return '<div class="pcol"><div class="panel-card"><div><h2>'+T("Storage partners")+'</h2><p class="sub">'+T("Owner view. Only you see this.")+'</p></div>'+
    '<button type="button" class="btn sec2" data-logout="1" style="align-self:flex-start">'+T("Log out")+'</button>'+
-   (apps?'<div><h3 style="margin:0 0 8px;font-size:16px">'+T("Applications waiting")+'</h3>'+apps+'</div>':'')+
    '<div><h3 style="margin:0 0 8px;font-size:16px">'+(f.editId?T("Edit partner")+': '+esc(f.editName||''):f.appRef?T("Approve application"):T("Add a partner"))+'</h3>'+(f.editId&&f.mixed?'<p class="note" style="margin:0">'+T("This partner has different hours on different days. They stay as they are unless you change the hours below.")+'</p>':'')+'</div>'+
    '<form id="addForm" novalidate style="display:flex;flex-direction:column;gap:10px">'+
     inp('ofName',T("Business name")+' *',f.name,'autocomplete="off"')+
@@ -3386,6 +3391,7 @@ function addErr(j){
 function ownerView(){
   if(!pv.ownerIn)return ownerLogin();
   if(pv.ownSub==='partners')return ownerSubnav()+ownerPartnersView();
+  if(pv.ownSub==='apps')return ownerSubnav()+ownerAppsView();
   var key=pv.month||NOWK,T0={bags:0,rev:0,fees:0,payout:0,keep:0};
   var rowsH=(pv.ownPartners||[]).map(function(l){
     var x=(pv.ownStats||{})[l.id+'|'+key]||{bags:0,revCents:0,bookings:0},t={bags:x.bags,rev:x.revCents/100};
@@ -3563,7 +3569,7 @@ pa.addEventListener('click',function(e){
   if(e.target.closest('[data-flow-close]')){pv.flow=null;pv.photoTmp='';renderPartner();return}
   var rf=e.target.closest('[data-refuse]');if(rf)doRefuse(rf);   var pb=e.target.closest('[data-pay]');if(pb){pb.disabled=true;api('/api/owner/payout',{partner:pb.getAttribute('data-pay'),month:(pv.month||NOWK)}).then(function(j){if(j.ok)loadOwner();else{pb.disabled=false;pb.textContent=T("Try again")}});return}   if(e.target.closest('[data-osend]')){var oe=document.getElementById('ownEmail').value.trim().toLowerCase();pv.ownEmail=oe;pv.ownErr=false;api('/api/auth/owner/send',{email:oe}).then(function(j){if(j.ok)pv.ownStep=2;else pv.ownErr=apiMsg(j);renderPartner()});return}
    var os=e.target.closest('[data-osub]');if(os){pv.ownSub=os.getAttribute('data-osub');renderPartner();return}
-   var ua=e.target.closest('[data-useapp]');if(ua){var a=pv.ownApps[+ua.getAttribute('data-useapp')];pv.addForm={appRef:a.ref,name:a.name,type:a.type,address:a.address,contact:a.contact,phone:a.phone,email:a.email,cap:String((a.cap_pack||0)+(a.cap_med||0)+(a.cap_large||0)),opens:a.opens,closes:a.closes,bfrom:a.bfrom||'',bto:a.bto||'',days:a.days,multi:!!(a.hours&&!pdUniform(a.hours)),hours:a.hours||null};pv.addMsg=null;renderPartner();window.scrollTo(0,0);return}
+   var ua=e.target.closest('[data-useapp]');if(ua){var a=pv.ownApps[+ua.getAttribute('data-useapp')];pv.ownSub='partners';pv.addForm={appRef:a.ref,name:a.name,type:a.type,address:a.address,contact:a.contact,phone:a.phone,email:a.email,cap:String((a.cap_pack||0)+(a.cap_med||0)+(a.cap_large||0)),opens:a.opens,closes:a.closes,bfrom:a.bfrom||'',bto:a.bto||'',days:a.days,multi:!!(a.hours&&!pdUniform(a.hours)),hours:a.hours||null};pv.addMsg=null;renderPartner();window.scrollTo(0,0);return}
    var ra=e.target.closest('[data-rejectapp]');if(ra){api('/api/owner/partners',{action:'reject',ref:ra.getAttribute('data-rejectapp')}).then(function(){loadOwnerPartners()});return}
    var pe=e.target.closest('[data-pedit]');if(pe){var pp=(pv.ownPartners||[]).filter(function(x){return x.id===pe.getAttribute('data-pedit')})[0];if(pp){
      var hs=pp.hours||[],first=null,days=[];hs.forEach(function(h,i){if(h){days.push(i);if(!first)first=h}});
