@@ -269,7 +269,8 @@ html[lang=ja] body,html[lang=zh] body{word-break:auto-phrase;line-break:strict}
 .tiers tbody th{text-align:left;font-weight:600;white-space:normal}
 .tiers thead th:first-child{width:auto}
 .tiers tbody th{min-width:0}
-@media (max-width:1100px){.plist thead{display:none}.plist,.plist tbody,.plist tr,.plist th,.plist td{display:block;width:100%}.plist tr{border-top:1px solid var(--line);padding:10px 0}.plist tbody th,.plist td{border:0;text-align:left;white-space:normal;padding:3px 0}.plist td[data-l]::before{content:attr(data-l) ": ";color:var(--ink-2);font-size:11px;text-transform:uppercase;letter-spacing:.04em}.plist td .pbtns{flex-direction:row!important;min-width:0!important;margin-top:6px}.plist td .pbtns .btn{flex:1;width:auto}}
+.plwrap{container-type:inline-size}
+@container (max-width:1000px){.plist thead{display:none}.plist,.plist tbody,.plist tr,.plist th,.plist td{display:block;width:100%}.plist tr{border-top:1px solid var(--line);padding:10px 0}.plist tbody th,.plist td{border:0;text-align:left;white-space:normal;padding:3px 0}.plist td[data-l]::before{content:attr(data-l) ": ";color:var(--ink-2);font-size:11px;text-transform:uppercase;letter-spacing:.04em}.plist td .pbtns{flex-direction:row!important;min-width:0!important;margin-top:6px}.plist td .pbtns .btn{flex:1;width:auto}}
 @media (max-width:420px){.tiers th,.tiers td{padding:7px 6px}.tiers thead th{white-space:normal;line-height:1.25;letter-spacing:.03em;font-size:10.5px}.tiers{font-size:12.5px}.bname{gap:6px}.bi svg{width:20px;height:20px}}
 .bname{display:flex;align-items:center;gap:8px}
 .bi{display:inline-flex;flex:none;color:var(--accent)}
@@ -3437,7 +3438,7 @@ function ownerPartnersView(){
     inp('ofDesc',T("One-line description for customers (optional)"),f.desc,'autocomplete="off"')+
     '<p class="note" id="reqNote" style="margin:0">* '+T("required")+'</p><button type="submit" class="btn" id="ofSave">'+(f.editId?T("Save changes"):T("Add partner and send welcome email"))+'</button>'+(f.editId?'<button type="button" class="btn sec2" data-canceledit="1">'+T("Cancel")+'</button>':'')+'</form>'+msg+
    '</div>'+
-   (list?'<div class="panel-card"><h3 style="margin:0;font-size:16px">'+T("All partners")+'</h3>'+usageTotals()+'<div class="tscroll"><table class="tiers plist"><thead><tr><th scope="col">'+T("Partner")+'</th><th scope="col">'+T("Login email")+'</th><th scope="col">'+T("Status")+'</th><th scope="col">'+T("Stored / spaces")+'</th><th scope="col"></th></tr></thead><tbody>'+list+'</tbody></table></div></div>':'')+'</div>';
+   (list?'<div class="panel-card"><h3 style="margin:0;font-size:16px">'+T("All partners")+'</h3>'+usageTotals()+'<div class="tscroll plwrap"><table class="tiers plist"><thead><tr><th scope="col">'+T("Partner")+'</th><th scope="col">'+T("Login email")+'</th><th scope="col">'+T("Status")+'</th><th scope="col">'+T("Stored / spaces")+'</th><th scope="col"></th></tr></thead><tbody>'+list+'</tbody></table></div></div>':'')+'</div>';
 }
 function readAddForm(){
   var d=[];for(var i=0;i<7;i++)if($('#od'+i)&&$('#od'+i).checked)d.push(i);
