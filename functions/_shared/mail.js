@@ -77,6 +77,8 @@ const wrap = (title, body) =>
   `<p style="font-size:12px;color:#5b6784">© ${new Date().getFullYear()} CarryOff. All rights reserved. · Varna, Bulgaria</p></div></body></html>`;
 
 // First name only, tidied; empty when we have none, so emails still read well.
+const DAYBG = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+const hoursLines = (h) => [1, 2, 3, 4, 5, 6, 0].filter((d) => h[d]).map((d) => `${DAYBG[d]} ${h[d][0]}–${h[d][1]}${h[d][2] ? ` (почивка ${h[d][2]}–${h[d][3]})` : ''}`);
 const first = (n) => String(n || '').trim().split(/\s+/)[0].slice(0, 40);
 const hi = (n) => (first(n) ? `Hi ${esc(first(n))},` : 'Hello,');
 const hiText = (n) => (first(n) ? `Hi ${first(n)},` : 'Hello,');
@@ -91,10 +93,10 @@ export const tpl = {
   applicationNotice: (a) => ({
     kind: 'application_notice',
     subject: `Ново заявление за партньор: ${a.name}`,
-    text: `Референция ${a.ref}\n${a.name} (${a.type || '-'}), ЕИК ${a.eik || '-'}\n${a.address}\nСедалище: ${a.reg_address || 'същият'}\nПредставлява: ${a.rep_name || 'лицето за контакт'}${a.rep_position ? ', ' + a.rep_position : ''}\nДДС регистрация: ${a.vat === 'yes' ? 'да' : 'не'}\nКонтакт: ${a.contact}, ${a.phone}, ${a.email}\nКапацитет: ${a.cap_pack} раници, ${a.cap_med} ръчен багаж, ${a.cap_large} големи куфара\nРаботно време: ${a.opens}-${a.closes}${a.bfrom ? `, обедна почивка ${a.bfrom}-${a.bto}` : ''}`,
+    text: `Референция ${a.ref}\n${a.name} (${a.type || '-'}), ЕИК ${a.eik || '-'}\n${a.address}\nСедалище: ${a.reg_address || 'същият'}\nПредставлява: ${a.rep_name || 'лицето за контакт'}${a.rep_position ? ', ' + a.rep_position : ''}\nДДС регистрация: ${a.vat === 'yes' ? 'да' : 'не'}\nКонтакт: ${a.contact}, ${a.phone}, ${a.email}\nКапацитет: ${a.cap_pack} раници, ${a.cap_med} ръчен багаж, ${a.cap_large} големи куфара\n${a.hours ? 'Работно време:\n' + hoursLines(a.hours).join('\n') : `Работно време: ${a.opens}-${a.closes}${a.bfrom ? `, обедна почивка ${a.bfrom}-${a.bto}` : ''}`}`,
     html: wrap('Ново заявление за партньор',
       `<p><b>${esc(a.name)}</b> (${esc(a.type || '-')})<br>ЕИК: ${esc(a.eik || '-')}<br>${esc(a.address)}<br>Седалище: ${esc(a.reg_address || 'същият')}<br>Представлява: ${esc(a.rep_name || 'лицето за контакт')}${a.rep_position ? ', ' + esc(a.rep_position) : ''}<br>ДДС регистрация: ${a.vat === 'yes' ? 'да' : 'не'}</p><p>Контакт: ${esc(a.contact)}<br>${esc(a.phone)}<br>${esc(a.email)}</p>` +
-      `<p>Капацитет: ${a.cap_pack} раници, ${a.cap_med} ръчен багаж, ${a.cap_large} големи куфара<br>Работно време: ${esc(a.opens)}–${esc(a.closes)}${a.bfrom ? `<br>Обедна почивка: ${esc(a.bfrom)}–${esc(a.bto)}` : ''}</p><p>Референция: <b>${esc(a.ref)}</b></p>`),
+      `<p>Капацитет: ${a.cap_pack} раници, ${a.cap_med} ръчен багаж, ${a.cap_large} големи куфара<br>${a.hours ? 'Работно време:<br>' + hoursLines(a.hours).map(esc).join('<br>') : `Работно време: ${esc(a.opens)}–${esc(a.closes)}${a.bfrom ? `<br>Обедна почивка: ${esc(a.bfrom)}–${esc(a.bto)}` : ''}`}</p><p>Референция: <b>${esc(a.ref)}</b></p>`),
   }),
   // Sent when the owner adds a partner: how to log in and what to do. Bulgarian only.
   partnerWelcome: (b) => {

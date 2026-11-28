@@ -138,3 +138,4 @@ alter default privileges in schema public grant all on sequences to service_role
 alter table partner_applications add column if not exists eik text;
 alter table partner_applications add column if not exists reg_address text, add column if not exists rep_name text, add column if not exists rep_position text, add column if not exists vat text;
 alter table partner_applications add column if not exists bfrom text, add column if not exists bto text;
+alter table partner_applications add column if not exists hours jsonb;

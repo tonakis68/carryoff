@@ -219,11 +219,12 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
 // ---------- partner application ----------
 {
   outbox.length = 0;
-  const good = { name: 'Blue Door Hostel', eik: '208 759 663', reg_address: 'ul. Test 5, Varna', vat: 'no', rep_name: 'Petar', rep_position: 'owner', type: 'Hotel or hostel', address: 'ul. Slivnitsa 1, Varna', contact: 'Ivan', phone: '+359 88 123 4567', email: 'Ivan@Blue.example', cap_pack: 10, cap_med: 5, cap_large: 2, opens: '09:00', closes: '18:00', bfrom: '13:00', bto: '14:00', days: [1, 2, 3] };
+  const good = { name: 'Blue Door Hostel', eik: '208 759 663', reg_address: 'ul. Test 5, Varna', vat: 'no', rep_name: 'Petar', rep_position: 'owner', type: 'Hotel or hostel', address: 'ul. Slivnitsa 1, Varna', contact: 'Ivan', phone: '+359 88 123 4567', email: 'Ivan@Blue.example', cap_pack: 10, cap_med: 5, cap_large: 2, opens: '09:00', closes: '18:00', bfrom: '13:00', bto: '14:00', days: [1, 2, 3], hours: [null, ['09:00', '18:00', '13:00', '14:00'], ['09:00', '18:00', '13:00', '14:00'], ['10:00', '14:00'], null, null, null] };
   let r = await post(apply, good); const b = await r.json();
   assert.equal(b.ok, true); assert.match(b.ref, /^P-[A-Z2-9]{4}$/);
   assert.equal(tables.partner_applications[0].email, 'ivan@blue.example'); assert.equal(tables.partner_applications[0].eik, '208759663'); assert.match(outbox.at(-1).html, /208759663/);
-  assert.equal((await post(apply, { ...good, eik: '12' })).status, 400); assert.equal((await post(apply, { ...good, bfrom: '13:00', bto: '12:00' })).status, 400); assert.equal(tables.partner_applications[0].bfrom, '13:00');
+  assert.equal((await post(apply, { ...good, eik: '12' })).status, 400); assert.equal((await post(apply, { ...good, hours: [null, ['09:00', '18:00', '14:00', '13:00'], null, null, null, null, null] })).status, 400); assert.equal(tables.partner_applications[0].bfrom, '13:00'); assert.deepEqual(tables.partner_applications[0].days, [1, 2, 3]); assert.deepEqual(tables.partner_applications[0].hours[3], ['10:00', '14:00']); assert.match(outbox.at(-1).html, /Ср 10:00–14:00/);
+  assert.equal((await post(apply, { ...good, hours: [null, ['18:00', '09:00'], null, null, null, null, null] })).status, 400);
   assert.equal(outbox.at(-1).to[0], 'Owner@Example.com'); assert.match(outbox.at(-1).html, /Blue Door Hostel/);
   ok('application is saved and the owner is emailed');
 
@@ -231,7 +232,7 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   r = await post(apply, { ...good, name: '<script>alert(1)</script>' });
   assert.ok(!outbox.at(-1).html.includes('<script>')); ok('HTML in applications is escaped in the email');
 
-  assert.equal((await post(apply, { ...good, closes: '08:00' })).status, 400);
+  assert.equal((await post(apply, { ...good, hours: undefined, closes: '08:00' })).status, 400);
   assert.equal((await post(apply, { ...good, email: 'nope' })).status, 400);
   const n = tables.partner_applications.length;
   await post(apply, { ...good, website: 'http://spam' }); assert.equal(tables.partner_applications.length, n);
@@ -462,6 +463,9 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
     const { openFor } = await import('../functions/_shared/capacity.js'); const tue = '2030-01-01';
     assert.equal(openFor(row.hours, tue, '12:00', '15:00'), true); assert.equal(openFor(row.hours, tue, '13:00', '15:00'), false); assert.equal(openFor(row.hours, tue, '09:00', '12:30'), false); assert.equal(openFor(row.hours, tue, '13:30', '15:00'), true);
     ok('no drop-off or pick-up during the lunch break'); }
+  { const r = await add({ ...base, name: 'Split Hours', email: 'split@example.com', coords: '43.22, 27.92', hours: [null, ['09:00', '18:00'], ['09:00', '18:00', '13:00', '14:00'], ['10:00', '24:00'], null, null, ['10:00', '14:00']] }); assert.equal(r.status, 201);
+    const row = tables.partners.find((p) => p.email === 'split@example.com'); assert.deepEqual(row.hours[3], ['10:00', '24:00']); assert.deepEqual(row.hours[2], ['09:00', '18:00', '13:00', '14:00']); assert.equal(row.hours[6][1], '14:00'); assert.equal(row.hours[0], null);
+    assert.equal((await add({ ...base, name: 'Bad Split', email: 'bs@example.com', coords: '43.2, 27.9', hours: [null, ['18:00', '09:00'], null, null, null, null, null] })).status, 400); ok('different hours per weekday are stored; bad hours are refused'); }
   { const row = tables.partners.find((p) => p.email === 'lunch@example.com'); const before = JSON.stringify(row.hours);
     let r = await add({ ...base, action: 'update', id: row.id, name: 'Lunch Shop 2', email: 'lunch@example.com', cap: 9 }); assert.equal(r.status, 200);
     assert.equal(row.name, 'Lunch Shop 2'); assert.equal(row.cap, 9); assert.equal(JSON.stringify(row.hours), before); ok('owner can edit a partner; hours stay unless changed');

@@ -1,3 +1,4 @@
+import { cleanHours } from '../../_shared/hours.js';
 import { db, eq } from '../../_shared/db.js';
 import { geocode, inVarna, parseMapsPin, publicPin } from '../../_shared/geocode.js';
 import { sendMail, tpl } from '../../_shared/mail.js';
@@ -55,13 +56,15 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const days = Array.isArray(b.days) ? [...new Set(b.days.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))] : [];
   const keepHours = isUpdate && !b.hoursChanged;
   if (name.length < 2 || !isEmail(email) || cap < 1 || cap > 500) throw new HttpError(400, 'invalid');
-  if (!keepHours && (!opens || !closes || closes <= opens || !days.length)) throw new HttpError(400, 'invalid');
+  const multi = Array.isArray(b.hours) ? cleanHours(b.hours, true) : null;
+  if (Array.isArray(b.hours) && !multi && !keepHours) throw new HttpError(400, 'invalid');
+  if (!keepHours && !multi && (!opens || !closes || closes <= opens || !days.length)) throw new HttpError(400, 'invalid');
   const bFrom = hhmm(b.bfrom), bTo = hhmm(b.bto), hasBreak = !!(b.bfrom || b.bto);
-  if (!keepHours && hasBreak && (!bFrom || !bTo || bFrom >= bTo || bFrom <= opens || bTo >= closes)) throw new HttpError(400, 'invalid');
+  if (!keepHours && !multi && hasBreak && (!bFrom || !bTo || bFrom >= bTo || bFrom <= opens || bTo >= closes)) throw new HttpError(400, 'invalid');
   const phone = clean(b.phone, 40), area = clean(b.area, 60);
   if (area.length < 3 || phone.replace(/\D/g, '').length < 6) throw new HttpError(400, 'invalid');
   const day = hasBreak ? [opens, closes, bFrom, bTo] : [opens, closes];
-  const newHours = keepHours ? current.hours : [0, 1, 2, 3, 4, 5, 6].map((d) => (days.includes(d) ? day : null));
+  const newHours = keepHours ? current.hours : multi ? multi : [0, 1, 2, 3, 4, 5, 6].map((d) => (days.includes(d) ? day : null));
 
   const pasted = clean(b.coords, 600);
   let c = pasted ? await parseMapsPin(pasted).catch(() => null) : null;
