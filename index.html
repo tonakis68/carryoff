@@ -130,7 +130,7 @@ input[type=date],input[type=text],input[type=email],input[type=tel],select{backg
 .m-slab{fill:var(--ink);font:700 11px var(--f-body);paint-order:stroke;stroke:var(--land);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
 .m-route{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:6 4}
 .m-rlab{fill:var(--accent);font:700 11px var(--f-body);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round;text-anchor:middle;pointer-events:none}
-.m-halo{fill:var(--p-bg,var(--off-solid));fill-opacity:.16;stroke:var(--p-bg,var(--off-solid));stroke-opacity:.55;stroke-width:1.5;stroke-dasharray:5 4;pointer-events:none;vector-effect:non-scaling-stroke}
+.m-halo{fill:var(--p-bg,var(--off-solid));fill-opacity:.24;stroke:var(--p-bg,var(--off-solid));stroke-opacity:.85;stroke-width:2;stroke-dasharray:5 4;pointer-events:none;vector-effect:non-scaling-stroke}
 .m-halo.s-ok{--p-bg:var(--ok-solid)}.m-halo.s-few{--p-bg:var(--warn-solid)}.m-halo.s-no{--p-bg:var(--bad-solid)}.m-halo.off{display:none}
 .pin{cursor:pointer;outline:none}
 .pin-body{fill:var(--p-bg);stroke:var(--surface);stroke-width:2}
@@ -2736,12 +2736,12 @@ function hsh(str){var h=2166136261;for(var i=0;i<str.length;i++){h^=str.charCode
 function pos(l){return shown(l)&&l.ex?l.ex:{x:l.x,y:l.y}}
 /* Places come from the server (/api/partners). The public list carries only an approximate pin and an area, never the name or address. */
 function buildLoc(p){
-  var q=proj(p.lat,p.lng),l={id:p.id,name:'',type:p.type||'Place',area:p.area||'',addr:p.area||'',desc:p.desc||'',perks:p.perks||[],cap:p.cap,hours:p.hours,paused:!!p.paused,x:q.x,y:q.y,busy:0};
+  var q=proj(p.lat,p.lng),l={id:p.id,name:'',type:p.type||'Place',area:p.area||'',addr:p.area||'',desc:p.desc||'',perks:p.perks||[],cap:p.cap,hours:p.hours,paused:!!p.paused,radius:Math.max(150,+p.radius||200),x:q.x,y:q.y,busy:0};
   l.tt={};STATIONS.forEach(function(s){l.tt[s.id]=travel(l,s)});return l;
 }
 function applyPlaces(j,first){
   if(first){LOCS.length=0;(j.places||[]).forEach(function(p){LOCS.push(buildLoc(p))})}
-  else (j.places||[]).forEach(function(p){var l=byId(p.id);if(l){l.paused=!!p.paused;l.cap=p.cap;l.hours=p.hours}});
+  else (j.places||[]).forEach(function(p){var l=byId(p.id);if(l){l.paused=!!p.paused;l.cap=p.cap;l.hours=p.hours;l.radius=Math.max(150,+p.radius||200)}});
   state.booked={};Object.keys(j.booked||{}).forEach(function(k){state.booked[k.replace('|','')]=j.booked[k]});
 }
 
@@ -2840,7 +2840,7 @@ function mapText(){
 }
 mapText();
 function mkPin(loc){
-  var hc=L.circle(posLL(loc),{radius:HALO_M,interactive:false,className:'m-halo'}).addTo(haloLayer);haloEls[loc.id]=hc;
+  var hc=L.circle(posLL(loc),{radius:loc.radius||HALO_M,interactive:false,className:'m-halo'}).addTo(haloLayer);haloEls[loc.id]=hc;
   var el=document.createElement('div');el.className='pin';el.setAttribute('tabindex','0');el.setAttribute('role','button');
   el.innerHTML='<svg width="32" height="38" viewBox="-16 -38 32 38" aria-hidden="true"><path class="pin-tail" d="M0 0 L-8 -11 L8 -11 Z"/><circle class="pin-body" cx="0" cy="-22" r="15"/><text class="pin-t" y="-17.5"></text></svg>';
   el.addEventListener('click',function(e){e.stopPropagation();choose(loc.id,true)});
@@ -2853,7 +2853,7 @@ function updatePins(){
   LOCS.forEach(function(l){
     var el=pinEls[l.id],ev=state.ev[l.id]||{status:'na',pin:'–',label:''},sel=state.sel===l.id,ll=posLL(l),hc=haloEls[l.id];
     markers[l.id].setLatLng(ll);markers[l.id].setZIndexOffset(sel?1000:0);
-    hc.setLatLng(ll);var he=hc.getElement();if(he)he.setAttribute('class','m-halo s-'+ev.status+(shown(l)?' off':''));
+    hc.setLatLng(ll);hc.setRadius(l.radius||HALO_M);var he=hc.getElement();if(he)he.setAttribute('class','m-halo s-'+ev.status+(shown(l)?' off':''));
     el.setAttribute('class','pin s-'+ev.status+(sel?' sel':''));
     el.querySelector('text').textContent=ev.pin;
     el.setAttribute('aria-label',nm(l)+', '+ev.label);
@@ -3330,6 +3330,35 @@ function ownerAppsView(){
     return '<div class="panel-card" style="padding:12px"><div><strong>'+esc(a.name)+'</strong> · '+esc(a.type||'')+'</div><div class="note">'+(det?det+'<br>':'')+esc(a.address)+'<br>'+esc(a.contact)+' · '+esc(a.phone)+' · '+esc(a.email)+'<br>'+tp('{0} backpacks, {1} carry-on bags, {2} large',a.cap_pack||0,a.cap_med||0,a.cap_large||0)+(hrs?'<br>'+hrs:'')+'<br>'+esc(a.ref)+'</div><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn" data-useapp="'+i+'" style="min-height:40px">'+T("Use these details")+'</button><button type="button" class="btn sec2" data-rejectapp="'+esc(a.ref)+'" style="min-height:40px">'+T("Reject")+'</button></div></div>'}).join('');
   return '<div class="pcol"><div class="panel-card"><div><h2>'+T("Pending applications")+'</h2><p class="sub">'+T("Businesses that applied to become a partner. Use the details to add them, or reject.")+'</p></div>'+(cards||'<div class="empty">'+T("No pending applications.")+'</div>')+'</div></div>';
 }
+var prevMap=null,prevShapes=null;
+function parseCoordsText(t){
+  var m=t.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/)||t.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/)||t.match(/[?&](?:q|query|ll|destination|center)=(-?\d{1,3}\.\d+)(?:,|%2C)\s*(-?\d{1,3}\.\d+)/i)||t.match(/(-?\d{1,3}\.\d{3,})\s*[,; ]\s*(-?\d{1,3}\.\d{3,})/);
+  return m?[+m[1],+m[2]]:null;
+}
+function ownerPreview(){
+  var box=$('#ofPrev');
+  if(prevMap){try{prevMap.remove()}catch(x){}prevMap=null;prevShapes=null}
+  if(!box||!window.L)return;
+  prevMap=L.map(box,{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([43.2141,27.9147],14);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(prevMap);
+  prevShapes=L.layerGroup().addTo(prevMap);
+  updatePreview(true);
+}
+function updatePreview(fit){
+  if(!prevMap||!$('#ofPrev'))return;
+  var note=$('#ofPrevNote'),txt=$('#ofCoords')?$('#ofCoords').value.trim():'',c=txt?parseCoordsText(txt):null,f=pv.addForm||{};
+  if(!c&&f.editId){var pp=(pv.ownPartners||[]).filter(function(x){return x.id===f.editId})[0];if(pp&&pp.lat!=null&&!txt)c=[pp.lat,pp.lng]}
+  prevShapes.clearLayers();
+  if(!c){if(note)note.textContent=txt?T("Preview needs a full Google Maps link or coordinates like 43.2, 27.9. The short link still works when you save."):T("Paste the Google Maps pin above to preview the circle customers will see.");return}
+  var r=+($('#ofRadius').value)||200;
+  L.circle(c,{radius:r,color:'#1d4ed8',weight:2,dashArray:'5 4',fillColor:'#1d4ed8',fillOpacity:.22,interactive:false}).addTo(prevShapes);
+  L.circleMarker(c,{radius:5,color:'#fff',weight:2,fillColor:'#1d4ed8',fillOpacity:1,interactive:false}).addTo(prevShapes);
+  if(note)note.textContent=T("Preview of the circle customers see, centred on your pin. On the public map the pin sits a little off-centre inside the circle.");
+  prevMap.invalidateSize();
+  prevMap.fitBounds(L.latLng(c[0],c[1]).toBounds(r*3.6),{animate:false});
+}
+document.addEventListener('input',function(e){var t=e.target;if(t&&(t.id==='ofCoords'))updatePreview()});
+document.addEventListener('change',function(e){var t=e.target;if(t&&(t.id==='ofRadius'||t.id==='ofCoords'))updatePreview()});
 function ownerPartnersView(){
   var f=pv.addForm||{},msg=pv.addMsg?'<p class="'+(pv.addMsg.ok?'okmsg':'why')+'" role="status" style="margin:0">'+pv.addMsg.t+'</p>':'';
   function inp(id,label,val,extra){return '<div><label class="lab2" for="'+id+'">'+label+'</label><input id="'+id+'" class="big" value="'+esc(val||'')+'" '+(extra||'')+'></div>'}
@@ -3350,6 +3379,8 @@ function ownerPartnersView(){
     phoneField('ofPhone',T("Phone")+' *','lab2',false,f.phone).replace('<select id=','<select class="big" id=').replace('<input type="tel"','<input class="big" type="tel"')+
     inp('ofEmail',T("Email (used for their login)")+' *',f.email,'type="email" inputmode="email" autocomplete="off"')+
     inp('ofCap',T("How many bags can they hold at once")+' *',f.cap,'inputmode="numeric"')+
+    '<div><label class="lab2" for="ofRadius">'+T("Circle radius on the map")+'</label><select id="ofRadius" class="big">'+[150,200,300,500].map(function(r){return '<option value="'+r+'"'+((f.radius||200)===r?' selected':'')+'>'+r+' m</option>'}).join('')+'</select></div>'+
+    '<div id="ofPrevBox"><div id="ofPrev" style="height:220px;border-radius:12px;overflow:hidden;border:1px solid var(--line)"></div><p class="note" id="ofPrevNote" style="margin:4px 0 0"></p></div>'+
     '<label class="chk" style="margin:2px 0"><input type="checkbox" id="ofMulti"'+(f.multi?' checked':'')+'> '+T("Different hours on some days")+'</label>'+
     '<div id="ofdBox"'+(f.multi?'':' hidden')+'>'+pdHTML('of',f.multi?f.hours:null,true)+'</div><div id="ofSimple"'+(f.multi?' hidden':'')+'>'+
     '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofOpen">'+T("Opens")+' *</label>'+timeSel('ofOpen',f.opens||'09:00',0)+'</div><div style="flex:1"><label class="lab2" for="ofClose">'+T("Closes")+' *</label>'+timeSel('ofClose',f.closes||'20:00',1)+'</div></div>'+
@@ -3362,7 +3393,7 @@ function ownerPartnersView(){
 }
 function readAddForm(){
   var d=[];for(var i=0;i<7;i++)if($('#od'+i)&&$('#od'+i).checked)d.push(i);
-  return {appRef:(pv.addForm||{}).appRef||'',editId:(pv.addForm||{}).editId||'',editName:(pv.addForm||{}).editName||'',mixed:(pv.addForm||{}).mixed||false,hoursChanged:(pv.addForm||{}).hoursChanged||false,name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.replace(/\D/g,'')?phoneVal('ofPhone'):'',email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,bfrom:$('#ofBFrom').value,bto:$('#ofBTo').value,multi:$('#ofMulti').checked,hours:$('#ofMulti').checked?pdRead('of').hours:null,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
+  return {appRef:(pv.addForm||{}).appRef||'',editId:(pv.addForm||{}).editId||'',editName:(pv.addForm||{}).editName||'',mixed:(pv.addForm||{}).mixed||false,hoursChanged:(pv.addForm||{}).hoursChanged||false,name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.replace(/\D/g,'')?phoneVal('ofPhone'):'',email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,bfrom:$('#ofBFrom').value,bto:$('#ofBTo').value,radius:+$('#ofRadius').value||200,multi:$('#ofMulti').checked,hours:$('#ofMulti').checked?pdRead('of').hours:null,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
 }
 function checkAddForm(f){
   var miss=[];
@@ -3418,6 +3449,7 @@ function partnerLogin(){
 function renderPartner(){
   var nav=("<div class=\"nav\" role=\"group\" aria-label=\""+T("Partner area sections")+"\">"+"<button type=\"button\" data-tab=\"dash\" aria-current=\"")+(pv.tab==='dash')+("\">"+T("Dashboard")+"</button>"+"<button type=\"button\" data-tab=\"earn\" aria-current=\"")+(pv.tab==='earn')+("\">"+T("Earnings")+"</button>"+"<button type=\"button\" data-tab=\"owner\" aria-current=\"")+(pv.tab==='owner')+("\">"+T("Owner")+"</button>"+"<button type=\"button\" data-tab=\"signup\" aria-current=\"")+(pv.tab==='signup')+("\">"+T("Become a partner")+"</button>"+"</div>");
   pa.innerHTML=("<h1>"+T("For storage partners")+"</h1>")+nav+'<div class="pa">'+(pv.tab==='dash'?(pv.me?dashHTML():partnerLogin()):pv.tab==='earn'?(pv.me?earnView():partnerLogin()):pv.tab==='owner'?ownerView():signupHTML())+'</div>';
+  try{ownerPreview()}catch(x){}
 }
 function note(t,ok){pv.note={t:t,ok:ok}}
 function actErr(j){
@@ -3574,7 +3606,7 @@ pa.addEventListener('click',function(e){
    var pe=e.target.closest('[data-pedit]');if(pe){var pp=(pv.ownPartners||[]).filter(function(x){return x.id===pe.getAttribute('data-pedit')})[0];if(pp){
      var hs=pp.hours||[],first=null,days=[];hs.forEach(function(h,i){if(h){days.push(i);if(!first)first=h}});
      var mixed=hs.some(function(h){return h&&JSON.stringify(h)!==JSON.stringify(first)});
-     pv.addForm={editId:pp.id,editName:pp.name,mixed:mixed,multi:mixed,hours:mixed?pp.hours:null,hoursChanged:false,name:pp.name,type:pp.type||'',address:pp.address||'',area:pp.area||'',contact:pp.contact||'',phone:pp.phone||'',email:pp.email||'',cap:String(pp.cap||''),opens:first?first[0]:'09:00',closes:first?first[1]:'20:00',bfrom:first&&first[2]||'',bto:first&&first[3]||'',days:days.length?days:[1,2,3,4,5,6],desc:pp.descr||'',coords:''};
+     pv.addForm={editId:pp.id,editName:pp.name,radius:pp.radius||200,mixed:mixed,multi:mixed,hours:mixed?pp.hours:null,hoursChanged:false,name:pp.name,type:pp.type||'',address:pp.address||'',area:pp.area||'',contact:pp.contact||'',phone:pp.phone||'',email:pp.email||'',cap:String(pp.cap||''),opens:first?first[0]:'09:00',closes:first?first[1]:'20:00',bfrom:first&&first[2]||'',bto:first&&first[3]||'',days:days.length?days:[1,2,3,4,5,6],desc:pp.descr||'',coords:''};
      pv.addMsg=null;pv.delAsk=null;renderPartner();window.scrollTo(0,0)}return}
    if(e.target.closest('[data-canceledit]')){pv.addForm=null;pv.addMsg=null;renderPartner();return}
    var pd=e.target.closest('[data-pdel]');if(pd){var did=pd.getAttribute('data-pdel');

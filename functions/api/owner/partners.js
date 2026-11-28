@@ -13,7 +13,9 @@ export const slug = (name) => String(name).toLowerCase().split('').map((c) => CY
 // Owner only. GET: all partners (including switched off) and applications waiting for a decision.
 export const onRequestGet = handler(async ({ request, env }) => {
   await requireRole(env, request, 'owner');
-  const partners = await db.select(env, 'partners', { select: 'id,name,type,area,email,phone,address,contact,cap,active,paused,hours,lat,lng,descr,created_at', order: 'created_at.desc', limit: 300 });
+  const cols = 'id,name,type,area,email,phone,address,contact,cap,active,paused,hours,lat,lng,descr,created_at';
+  const qp = (c) => db.select(env, 'partners', { select: c, order: 'created_at.desc', limit: 300 });
+  const partners = await qp(`${cols},radius`).catch(() => qp(cols)); // radius column may not exist yet
   const applications = await db.select(env, 'partner_applications', { filters: { status: eq('pending') }, order: 'created_at.desc', limit: 100 });
   return json({ ok: true, partners, applications });
 });
@@ -62,6 +64,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const bFrom = hhmm(b.bfrom), bTo = hhmm(b.bto), hasBreak = !!(b.bfrom || b.bto);
   if (!keepHours && !multi && hasBreak && (!bFrom || !bTo || bFrom >= bTo || bFrom <= opens || bTo >= closes)) throw new HttpError(400, 'invalid');
   const phone = clean(b.phone, 40), area = clean(b.area, 60);
+  const radius = [150, 200, 300, 500].includes(+b.radius) ? +b.radius : 200;
   if (area.length < 3 || phone.replace(/\D/g, '').length < 6) throw new HttpError(400, 'invalid');
   const day = hasBreak ? [opens, closes, bFrom, bTo] : [opens, closes];
   const newHours = keepHours ? current.hours : multi ? multi : [0, 1, 2, 3, 4, 5, 6].map((d) => (days.includes(d) ? day : null));
@@ -76,9 +79,12 @@ export const onRequestPost = handler(async ({ request, env }) => {
   if (isUpdate) {
     const dup = await db.select(env, 'partners', { filters: { email: eq(email) }, select: 'id', limit: 5 });
     if (dup.some((p) => p.id !== current.id)) throw new HttpError(409, 'email_taken');
-    const patch = { name, email, phone, address, contact: clean(b.contact, 120), type: clean(b.type, 60), area, descr: clean(b.desc, 300), cap, hours: newHours };
+    const patch = { name, email, phone, address, contact: clean(b.contact, 120), type: clean(b.type, 60), area, descr: clean(b.desc, 300), cap, hours: newHours, radius };
     if (c) { const pin = publicPin(current.id, c); Object.assign(patch, { lat: c.lat, lng: c.lng, pub_lat: pin.lat, pub_lng: pin.lng }); }
-    const done = await db.update(env, 'partners', { id: eq(current.id) }, patch);
+    const done = await db.update(env, 'partners', { id: eq(current.id) }, patch).catch(async () => {
+      const { radius: _r, ...rest } = patch; // radius column may not exist yet
+      return db.update(env, 'partners', { id: eq(current.id) }, rest);
+    });
     return json({ ok: true, id: current.id, partner: { id: current.id, name, lat: done[0].lat, lng: done[0].lng } });
   }
 
@@ -93,7 +99,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
     perks: Array.isArray(b.perks) ? b.perks.map((x) => clean(x, 60)).filter(Boolean).slice(0, 6) : [],
     cap, hours, lat: c.lat, lng: c.lng, pub_lat: pin.lat, pub_lng: pin.lng, active: true, paused: false,
   };
-  const made = await db.insert(env, 'partners', row);
+  const made = await db.insert(env, 'partners', { ...row, radius }).catch(() => db.insert(env, 'partners', row)); // radius column may not exist yet
   if (b.appRef) await db.update(env, 'partner_applications', { ref: eq(String(b.appRef)) }, { status: 'approved' });
   let mailed = true;
   try { await sendMail(env, { to: email, ...tpl.partnerWelcome({ name, contact: clean(b.contact, 120), origin: new URL(request.url).origin }) }); } catch { mailed = false; }

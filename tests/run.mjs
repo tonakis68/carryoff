@@ -466,6 +466,11 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   { const r = await add({ ...base, name: 'Split Hours', email: 'split@example.com', coords: '43.22, 27.92', hours: [null, ['09:00', '18:00'], ['09:00', '18:00', '13:00', '14:00'], ['10:00', '24:00'], null, null, ['10:00', '14:00']] }); assert.equal(r.status, 201);
     const row = tables.partners.find((p) => p.email === 'split@example.com'); assert.deepEqual(row.hours[3], ['10:00', '24:00']); assert.deepEqual(row.hours[2], ['09:00', '18:00', '13:00', '14:00']); assert.equal(row.hours[6][1], '14:00'); assert.equal(row.hours[0], null);
     assert.equal((await add({ ...base, name: 'Bad Split', email: 'bs@example.com', coords: '43.2, 27.9', hours: [null, ['18:00', '09:00'], null, null, null, null, null] })).status, 400); ok('different hours per weekday are stored; bad hours are refused'); }
+  { const r = await add({ ...base, name: 'Wide Circle', email: 'wide@example.com', coords: '43.23, 27.93', radius: 300 }); assert.equal(r.status, 201);
+    assert.equal(tables.partners.find((p) => p.email === 'wide@example.com').radius, 300);
+    await add({ ...base, name: 'Odd Circle', email: 'odd@example.com', coords: '43.24, 27.94', radius: 5 });
+    assert.equal(tables.partners.find((p) => p.email === 'odd@example.com').radius, 200);
+    const j = await (await get(pubPartners)).json(); assert.equal(j.places.find((x) => x.id.startsWith('wide-circle')).radius, 300); ok('each partner has its own map circle radius (default 200 m)'); }
   { const row = tables.partners.find((p) => p.email === 'lunch@example.com'); const before = JSON.stringify(row.hours);
     let r = await add({ ...base, action: 'update', id: row.id, name: 'Lunch Shop 2', email: 'lunch@example.com', cap: 9 }); assert.equal(r.status, 200);
     assert.equal(row.name, 'Lunch Shop 2'); assert.equal(row.cap, 9); assert.equal(JSON.stringify(row.hours), before); ok('owner can edit a partner; hours stay unless changed');
