@@ -74,7 +74,7 @@ const wrap = (title, body) =>
   `<!doctype html><html><body style="margin:0;background:#f4f6fb;font-family:Arial,Helvetica,sans-serif;color:#0f1b3d">` +
   `<div style="max-width:520px;margin:0 auto;padding:24px"><div style="font-size:22px;font-weight:700;margin-bottom:16px">Carry<span style="color:#1d4ed8">Off</span></div>` +
   `<div style="background:#fff;border-radius:12px;padding:24px"><h1 style="font-size:20px;margin:0 0 12px">${esc(title)}</h1>${body}</div>` +
-  `<p style="font-size:12px;color:#5b6784">CarryOff · Tonakis Hospitality · Varna, Bulgaria</p></div></body></html>`;
+  `<p style="font-size:12px;color:#5b6784">© ${new Date().getFullYear()} CarryOff. All rights reserved. · Varna, Bulgaria</p></div></body></html>`;
 
 export const tpl = {
   loginCode: (code) => ({
