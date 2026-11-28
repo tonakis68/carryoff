@@ -3617,6 +3617,13 @@ pa.addEventListener('submit',function(e){
     });
   }
 });
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Enter'||e.isComposing)return;
+  var t=e.target;if(!t||!/^(pEmail|pCode|ownEmail|ownCode|ownTotp)$/.test(t.id))return;
+  var card=t.closest('.panel-card');if(!card)return;
+  var btn=card.querySelector('[data-psend],[data-pverify],[data-osend],[data-overify],[data-ototp]');
+  if(btn&&!btn.disabled){e.preventDefault();btn.click()}
+});
 document.addEventListener('input',function(e){var t=e.target;if(t&&/^of(Open|Close|BFrom|BTo|Multi|d[A-Z][a-z]?\d)$/.test(t.id)&&pv.addForm)pv.addForm.hoursChanged=true;if(t&&t.classList&&t.classList.contains('req-bad')){t.classList.remove('req-bad');var l=document.querySelector('label[for="'+t.id+'"]');if(l)l.classList.remove('req-bad-lab')}});
 document.addEventListener('change',function(e){var ct=e.target;if(ct&&ct.closest){var dr=ct.closest('.dayrow.req-bad');if(dr){dr.classList.remove('req-bad');if(dr.previousElementSibling)dr.previousElementSibling.classList.remove('req-bad-lab')}var ag=ct.closest('label.agree.req-bad');if(ag)ag.classList.remove('req-bad');if(ct.classList&&ct.classList.contains('req-bad')&&ct.tagName==='SELECT'){ct.classList.remove('req-bad');var l2=document.querySelector('label[for="'+ct.id+'"]');if(l2)l2.classList.remove('req-bad-lab')}}if(e.target&&/^(of(Open|Close|BFrom|BTo)|od\d)$/.test(e.target.id||'')&&pv.addForm)pv.addForm.hoursChanged=true;var g=$('#odGroup');if(g&&g.contains(e.target)&&g.classList.contains('req-bad')){g.classList.remove('req-bad');if(g.previousElementSibling)g.previousElementSibling.classList.remove('req-bad-lab')}});
 function applyPlacesNow(){api('/api/partners').then(function(r){if(r&&r.ok){
