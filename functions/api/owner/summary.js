@@ -11,10 +11,12 @@ export const onRequestGet = handler(async ({ request, env }) => {
   const today = nowInVarna().date;
   const [y, m] = today.split('-').map(Number);
   const from = new Date(Date.UTC(y, m - 1 - 3, 1)).toISOString().slice(0, 10);
-  const rows = await db.select(env, 'bookings', {
-    filters: { status: 'in.(booked,stored,returned,refused)', drop_date: `gte.${from}` },
-    select: 'partner_id,drop_date,n_pack,n_med,n_large,total_cents,status', limit: 5000,
-  });
+  const q = (select) => db.select(env, 'bookings', { filters: { status: 'in.(booked,stored,returned,refused)', drop_date: `gte.${from}` }, select, limit: 5000 });
+  const cols = 'partner_id,drop_date,n_pack,n_med,n_large,total_cents,status';
+  let rows;
+  try { rows = await q(cols + ',source'); } catch { rows = await q(cols); } // the source column may not exist yet
+  const sources = {}; // month -> answer -> bookings
+  for (const b of rows) { if (b.status === 'refused') continue; const m = (sources[b.drop_date.slice(0, 7)] ||= {}); const a = b.source || 'none'; m[a] = (m[a] || 0) + 1; }
   const stats = {}; // "partner|month" -> totals
   for (const b of rows) {
     const k = `${b.partner_id}|${b.drop_date.slice(0, 7)}`;
@@ -23,5 +25,5 @@ export const onRequestGet = handler(async ({ request, env }) => {
     if (b.status === 'stored' || b.status === 'returned') { t.bags += n; t.revCents += b.total_cents; t.bookings += 1; } else if (b.status === 'booked') t.pending += n;
   }
   const payouts = await db.select(env, 'payouts', { select: 'partner_id,month,status,bags,amount_cents,paid_at' });
-  return json({ ok: true, today, payCents: PAYOUT_CENTS, stats: Object.values(stats), payouts });
+  return json({ ok: true, today, payCents: PAYOUT_CENTS, stats: Object.values(stats), payouts, sources });
 });

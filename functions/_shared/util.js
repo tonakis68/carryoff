@@ -110,4 +110,5 @@ export function needEnv(env, names) {
 }
 
 // Version of /terms.html the customer agrees to at checkout (kept in Stripe metadata as proof).
+export const SOURCES = ['google', 'maps', 'instagram', 'facebook', 'tiktok', 'host', 'sticker', 'friend', 'other']; // where customers heard about us
 export const TERMS_VERSION = '2026-11-28';

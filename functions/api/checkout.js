@@ -3,7 +3,7 @@ import { db, eq } from '../_shared/db.js';
 import { bookToken } from '../_shared/booktoken.js';
 import { LONG_AFTER_MIN, minOf, nowInVarna, priceCents, validDate, validTime } from '../_shared/pricing.js';
 import { createCheckout } from '../_shared/stripe.js';
-import { HttpError, handler, isEmail, json, needEnv, normEmail, randRef, readJson, requireSameOrigin } from '../_shared/util.js';
+import { HttpError, SOURCES, handler, isEmail, json, needEnv, normEmail, randRef, readJson, requireSameOrigin } from '../_shared/util.js';
 
 const intIn = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 
@@ -56,11 +56,14 @@ export const onRequestPost = handler(async ({ request, env }) => {
   for (let i = 0; i < 3 && !row; i++) {
     ref = randRef('CO-', 5);
     try {
-      [row] = await db.insert(env, 'bookings', {
+      const rec = {
         ref, partner_id: partner.id, customer_name: name, customer_email: email, customer_phone: phone,
         drop_date: drop.date, drop_time: drop.time, pick_date: pick.date, pick_time: pick.time,
         n_pack: items.pack, n_med: items.med, n_large: items.large, total_cents: total, status: 'pending_payment',
-      });
+      };
+      const source = SOURCES.includes(b.source) ? b.source : null;
+      try { [row] = await db.insert(env, 'bookings', source ? { ...rec, source } : rec); }
+      catch (e) { if (!source) throw e; [row] = await db.insert(env, 'bookings', rec); } // the source column may not exist yet
     } catch (e) { if (i === 2) throw e; }
   }
   const k = await bookToken(env, ref);

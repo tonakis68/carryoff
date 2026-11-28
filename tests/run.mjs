@@ -291,6 +291,10 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
 
   r = await co({ ...good, total: 1, price: 1, items: { pack: 1, med: 0, large: 0 } });
   assert.equal(tables.bookings.at(-1).total_cents, 399); ok('a price sent by the browser is ignored');
+  r = await co({ ...good, source: 'instagram' }); assert.equal(r.status, 200); assert.equal(tables.bookings.at(-1).source, 'instagram');
+  r = await co({ ...good, source: '<script>' }); assert.equal(r.status, 200); assert.ok(!tables.bookings.at(-1).source);
+  r = await co({ ...good }); assert.equal(r.status, 200); assert.ok(!tables.bookings.at(-1).source);
+  ok('the "where did you hear about us" answer is saved when valid, ignored when not, and optional');
 
   for (const [why, bad, code] of [
     ['overnight', { pick: { date: new Date(Date.parse(day) + 864e5).toISOString().slice(0, 10), time: '10:00' } }, 'same_day_only'],
