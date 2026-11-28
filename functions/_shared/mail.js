@@ -162,6 +162,18 @@ export const tpl = {
     text: `${hiText(b.name)}\n\nYour booking ${b.ref} is cancelled and your payment is refunded in full to the card you used. It usually arrives within 5 to 10 working days. You are welcome to book again any time.`,
     html: wrap('Booking cancelled', `<p>${hi(b.name)}</p><p>Your booking <b>${esc(b.ref || '')}</b> is cancelled and your payment is refunded in full to the card you used. It usually arrives within 5 to 10 working days. You are welcome to book again any time.</p>`),
   }),
+  lateFeeRequest: (b = {}) => ({
+    kind: 'late_fee',
+    subject: 'Late collection fee for your booking ' + (b.ref || ''),
+    text: `${hiText(b.name)}\n\nYour bags for booking ${b.ref} were collected after the agreed time, so the late collection fee in our terms applies: EUR ${b.fee}. Please pay it here: ${b.url}\n\nThe link works for 23 hours. If you have a question, reply to this email.`,
+    html: wrap('Late collection fee', `<p>${hi(b.name)}</p><p>Your bags for booking <b>${esc(b.ref || '')}</b> were collected after the agreed time, so the late collection fee in our terms applies: <b>€${esc(b.fee || '')}</b>.</p><p style="margin:0 0 14px"><a href="${esc(b.url)}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:700">Pay the late fee</a></p><p>The link works for 23 hours. If you have a question, reply to this email.</p>`),
+  }),
+  lateFeePaid: (b = {}) => ({
+    kind: 'late_fee_paid',
+    subject: 'Late fee received for booking ' + (b.ref || ''),
+    text: `${hiText(b.name)}\n\nWe received your late collection fee of EUR ${b.fee} for booking ${b.ref}. Thank you.`,
+    html: wrap('Late fee received', `<p>${hi(b.name)}</p><p>We received your late collection fee of <b>€${esc(b.fee || '')}</b> for booking <b>${esc(b.ref || '')}</b>. Thank you.</p>`),
+  }),
   bagsRefused: (b = {}) => ({
     kind: 'bags_refused',
     subject: 'Your bags could not be stored',

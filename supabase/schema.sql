@@ -144,3 +144,20 @@ alter table partners add column if not exists circle_lat double precision, add c
 
 -- Where the customer heard about CarryOff (optional answer at booking)
 alter table bookings add column if not exists source text;
+
+-- Late collection fees (3x the booking price, paid by payment link; the partner gets half)
+create table if not exists late_fees (
+  id                uuid primary key default gen_random_uuid(),
+  ref               text not null unique references bookings(ref),
+  partner_id        text not null references partners(id),
+  month             text not null check (month ~ '^[0-9]{4}-[0-9]{2}$'),
+  fee_cents         int  not null,
+  partner_cents     int  not null,
+  status            text not null default 'sent' check (status in ('sent','paid')),
+  stripe_session_id text,
+  created_at        timestamptz not null default now(),
+  paid_at           timestamptz
+);
+alter table late_fees enable row level security;
+revoke all on late_fees from anon, authenticated;
+grant all on late_fees to service_role;

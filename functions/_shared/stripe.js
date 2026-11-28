@@ -1,7 +1,7 @@
 // Stripe over plain fetch (no library). Test or live mode is decided by the key you set.
 import { hmacBytes, toHex, timingEq, HttpError, TERMS_VERSION } from './util.js';
 
-export async function createCheckout(env, { ref, email, cents, name, successUrl, cancelUrl, description }) {
+export async function createCheckout(env, { ref, email, cents, name, successUrl, cancelUrl, description, meta = {}, expiresMin = 31 }) {
   const p = new URLSearchParams();
   p.set('mode', 'payment');
   p.set('success_url', successUrl);
@@ -18,7 +18,8 @@ export async function createCheckout(env, { ref, email, cents, name, successUrl,
   p.set('line_items[0][price_data][currency]', 'eur');
   p.set('line_items[0][price_data][unit_amount]', String(cents));
   p.set('line_items[0][price_data][product_data][name]', name);
-  p.set('expires_at', String(Math.floor(Date.now() / 1000) + 31 * 60)); // Stripe minimum is 30 minutes
+  for (const [k, v] of Object.entries(meta)) { p.set(`metadata[${k}]`, v); p.set(`payment_intent_data[metadata][${k}]`, v); }
+  p.set('expires_at', String(Math.floor(Date.now() / 1000) + expiresMin * 60)); // Stripe: at least 30 minutes, at most 24 hours
   const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
     method: 'POST',
     headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, 'content-type': 'application/x-www-form-urlencoded' },
@@ -56,4 +57,11 @@ export async function refundPayment(env, { paymentIntent, ref }) {
     throw new HttpError(502, 'refund_failed');
   }
   return { id: j.id };
+}
+
+// Close an unpaid checkout link (best effort): used when a late-fee link is sent again.
+export async function expireCheckout(env, id) {
+  try {
+    await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(id)}/expire`, { method: 'POST', headers: { authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } });
+  } catch (e) { console.error('stripe expire', String(e).slice(0, 100)); }
 }

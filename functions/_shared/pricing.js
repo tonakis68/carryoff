@@ -34,3 +34,7 @@ export function cancelDeadline(dropDate, dropTime) {
   const t = dayN(dropDate) * 1440 + minOf(dropTime) - CANCEL_MIN, m = ((t % 1440) + 1440) % 1440;
   return { date: new Date(Math.floor(t / 1440) * 864e5).toISOString().slice(0, 10), time: `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` };
 }
+
+// Late collection: the customer pays 3 times the booking price; the partner gets half of that.
+export const LATE_MULT = 3;
+export const lateFee = (totalCents) => ({ cents: totalCents * LATE_MULT, partnerCents: Math.floor((totalCents * LATE_MULT) / 2) });

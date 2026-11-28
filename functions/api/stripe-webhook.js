@@ -13,6 +13,8 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const ref = s?.metadata?.ref || s?.client_reference_id;
   if (!ref || !String(s?.id || '').startsWith('cs_')) return json({ ok: true, ignored: true });
 
+  if (s?.metadata?.kind === 'late_fee') return lateFeePaid(env, ev, s, ref);
+
   const booking = (await db.select(env, 'bookings', { filters: { ref: eq(ref) }, limit: 1 }))[0];
   if (!booking || booking.stripe_session_id !== s.id) return json({ ok: true, ignored: true });
 
@@ -42,3 +44,17 @@ export const onRequestPost = handler(async ({ request, env }) => {
   }
   return json({ ok: true });
 });
+
+// A late collection fee was paid through the payment link the owner sent.
+async function lateFeePaid(env, ev, s, ref) {
+  if (ev.type !== 'checkout.session.completed' && ev.type !== 'checkout.session.async_payment_succeeded') return json({ ok: true, ignored: true });
+  if (s.payment_status !== 'paid') return json({ ok: true, waiting: true });
+  const fee = (await db.select(env, 'late_fees', { filters: { ref: eq(ref) }, limit: 1 }))[0];
+  if (!fee || s.amount_total !== fee.fee_cents || s.currency !== 'eur') { console.error('late fee mismatch', ref, s.amount_total); return json({ ok: true, ignored: true }); }
+  const flipped = await db.update(env, 'late_fees', { ref: eq(ref), status: eq('sent') }, { status: 'paid', paid_at: new Date().toISOString() });
+  if (flipped.length) {
+    const bk = (await db.select(env, 'bookings', { filters: { ref: eq(ref) }, limit: 1 }))[0] || {};
+    if (bk.customer_email) await sendMail(env, { to: bk.customer_email, ...tpl.lateFeePaid({ ref, name: bk.customer_name, fee: (fee.fee_cents / 100).toFixed(2) }) });
+  } else console.error('late fee paid again or out of order', ref, s.id);
+  return json({ ok: true });
+}

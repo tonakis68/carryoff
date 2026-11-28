@@ -20,6 +20,7 @@ import * as pAction from '../functions/api/partner/action.js';
 import * as pPause from '../functions/api/partner/pause.js';
 import * as oSummary from '../functions/api/owner/summary.js';
 import * as oPayout from '../functions/api/owner/payout.js';
+import * as oLate from '../functions/api/owner/latefee.js';
 import * as oPartners from '../functions/api/owner/partners.js';
 import * as pubPartners from '../functions/api/partners.js';
 import { makeToken, cookieHeader } from '../functions/_shared/session.js';
@@ -34,7 +35,7 @@ const env = {
 };
 
 // ---------- fake backends ----------
-const tables = { partners: [], partner_applications: [], login_codes: [], owner_settings: [], email_log: [], bookings: [], payouts: [] };
+const tables = { partners: [], partner_applications: [], login_codes: [], owner_settings: [], email_log: [], bookings: [], payouts: [], late_fees: [] };
 let geoResult = [{ lat: '43.2051', lon: '27.9102' }]; const geoCalls = [];
 let refundFails = false; const refunds = [];
 const outbox = [];
@@ -460,10 +461,33 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   assert.equal(st.bags, 3); assert.equal(st.revCents, 1500); ok('owner sees bags and customer payments per partner and month; refused bookings do not count');
   { mk('CO-USE01', { status: 'stored', n_pack: 2, n_med: 1, n_large: 0 }); mk('CO-USE02', { status: 'booked', n_pack: 1, n_med: 0, n_large: 0 }); const pj = await (await get(oPartners, owner)).json(); const ua = pj.usage.aurora; assert.equal(ua.stored, 3); assert.equal(ua.today, 4); ok('owner partner list reports bags stored now and booked today per partner'); }
   assert.equal((await post(oPayout, { partner: 'aurora', month }, owner)).status, 400); ok('the running month cannot be paid out');
+  // late collection fee: 3x the price by payment link, partner gets half
+  {
+    const lhook = (ev) => { const body = JSON.stringify(ev), t = Math.floor(Date.now() / 1000); return webhook.onRequestPost({ env, request: new Request(ORIGIN + '/api/stripe-webhook', { method: 'POST', headers: { 'stripe-signature': `t=${t},v1=${createHmac('sha256', 'whsec_test').update(`${t}.${body}`).digest('hex')}` }, body }) }); };
+    assert.equal((await post(oLate, { ref: 'CO-LAST1' }, aurora)).status, 401);
+    assert.equal((await post(oLate, { ref: 'bad' }, owner)).status, 400);
+    assert.equal((await post(oLate, { ref: 'CO-ZZZZZ' }, owner)).status, 404);
+    assert.equal((await post(oLate, { ref: 'CO-BBBB2' }, owner)).status, 409); // not stored yet
+    let pv = await (await post(oLate, { ref: 'CO-LAST1' }, owner)).json();
+    assert.equal(pv.preview.feeCents, 4500); assert.equal(pv.preview.partnerCents, 2250); assert.equal(tables.late_fees.length, 0); ok('late fee preview: 3 x the price, half for the partner, nothing created yet');
+    outbox.length = 0; const n0 = stripeCalls.length;
+    let sj = await (await post(oLate, { ref: 'CO-LAST1', send: true }, owner)).json();
+    assert.equal(sj.ok, true); assert.match(sj.url, /checkout\.stripe\.com/);
+    const sc = stripeCalls[n0]; assert.equal(sc['line_items[0][price_data][unit_amount]'], '4500'); assert.equal(sc['metadata[kind]'], 'late_fee');
+    assert.equal(tables.late_fees.length, 1); assert.equal(tables.late_fees[0].status, 'sent'); assert.equal(tables.late_fees[0].partner_cents, 2250);
+    assert.match(outbox.at(-1).subject, /late collection fee/i); assert.ok(outbox.at(-1).text.includes(sj.url)); ok('sending creates a Stripe link for 3 x the price and emails it to the customer');
+    const sid = tables.late_fees[0].stripe_session_id, evt = { type: 'checkout.session.completed', data: { object: { id: sid, metadata: { ref: 'CO-LAST1', kind: 'late_fee' }, payment_status: 'paid', amount_total: 4500, currency: 'eur' } } };
+    assert.equal((await lhook({ ...evt, data: { object: { ...evt.data.object, amount_total: 100 } } })).status, 200); assert.equal(tables.late_fees[0].status, 'sent');
+    await lhook(evt); assert.equal(tables.late_fees[0].status, 'paid'); const mails = outbox.length; await lhook(evt); assert.equal(outbox.length, mails);
+    assert.equal(tables.bookings.find((x) => x.ref === 'CO-LAST1').status, 'returned'); ok('the fee is marked paid once, the customer gets a receipt, the booking is untouched; a wrong amount is ignored');
+    assert.equal((await post(oLate, { ref: 'CO-LAST1', send: true }, owner)).status, 409); ok('a paid late fee cannot be charged twice');
+    const sj2 = await (await get(oSummary, owner)).json(); assert.equal(sj2.lateFees[`aurora|${last.slice(0, 7)}`].partnerCents, 2250);
+    assert.equal((await (await get(oLate, owner)).json()).fees.length, 1); ok('owner sees the paid fee and the partner share');
+  }
   assert.equal((await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, aurora)).status, 401);
   r = await (await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, owner)).json();
-  assert.equal(r.payout.amount_cents, 150); assert.equal(r.payout.status, 'paid');
-  await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, owner); assert.equal(tables.payouts.length, 1); ok('owner marks a month as paid: 3 bags x EUR 0.50, once');
+  assert.equal(r.payout.amount_cents, 150 + 2250); assert.equal(r.payout.status, 'paid');
+  await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, owner); assert.equal(tables.payouts.length, 1); ok('owner marks a month as paid: 3 bags x EUR 0.50 plus half of the late fee, once');
   j = await (await get(pBookings, aurora)).json(); assert.equal(j.payouts[0].status, 'paid'); ok('partner sees the month as paid');
 }
 
