@@ -1,5 +1,5 @@
 // Stripe over plain fetch (no library). Test or live mode is decided by the key you set.
-import { hmacBytes, toHex, timingEq, HttpError } from './util.js';
+import { hmacBytes, toHex, timingEq, HttpError, TERMS_VERSION } from './util.js';
 
 export async function createCheckout(env, { ref, email, cents, name, successUrl, cancelUrl, description }) {
   const p = new URLSearchParams();
@@ -10,6 +10,9 @@ export async function createCheckout(env, { ref, email, cents, name, successUrl,
   p.set('customer_email', email);
   p.set('metadata[ref]', ref);
   p.set('payment_intent_data[metadata][ref]', ref);
+  p.set('metadata[terms_version]', TERMS_VERSION);
+  p.set('metadata[terms_accepted_at]', new Date().toISOString());
+  p.set('payment_intent_data[metadata][terms_version]', TERMS_VERSION);
   p.set('payment_intent_data[description]', description);
   p.set('line_items[0][quantity]', '1');
   p.set('line_items[0][price_data][currency]', 'eur');

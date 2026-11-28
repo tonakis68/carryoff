@@ -108,3 +108,6 @@ export function handler(fn) {
 export function needEnv(env, names) {
   for (const n of names) if (!env[n]) throw new HttpError(503, 'not_configured');
 }
+
+// Version of /terms.html the customer agrees to at checkout (kept in Stripe metadata as proof).
+export const TERMS_VERSION = '2026-11-28';

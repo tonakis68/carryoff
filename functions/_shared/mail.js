@@ -127,7 +127,8 @@ export const tpl = {
         `<p style="margin:0 0 4px"><b>${esc(b.place)}</b><br>${esc(b.address)}</p>` +
         `<p style="margin:0 0 12px">Drop-off: <b>${esc(b.date)} at ${esc(b.dropTime)}</b><br>Pick up the same day by <b>${esc(b.pickTime)}</b><br>Bags: ${esc(b.bags)} · Paid: EUR ${esc(b.total)}</p>` +
         `<p style="margin:0 0 12px">${dir ? btn(dir, 'Get directions') : ''}${btn(b.bookingUrl, 'View my booking')}</p>` +
-        `<p style="font-size:13px;color:#5b6784;margin:0">Keep your passport, keys, phone, cash, medication and electronics with you. Bags cannot be opened or accessed while stored.</p>`),
+        `<p style="font-size:13px;color:#5b6784;margin:0 0 8px">Keep your passport, keys, phone, cash, medication and electronics with you. Bags cannot be opened or accessed while stored.</p>` +
+        `<p style="font-size:13px;color:#5b6784;margin:0">You agreed to our <a href="https://carryoff.eu/terms" style="color:#1d4ed8">Terms and Conditions</a> when you booked.</p>`),
     };
   },
   bagsReceived: (b) => {
