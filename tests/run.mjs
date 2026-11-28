@@ -279,17 +279,17 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   let r = await co(good); let j = await r.json();
   assert.equal(r.status, 200); assert.match(j.url, /^https:\/\/checkout\.stripe\.com\//);
   let bk = tables.bookings.at(-1);
-  assert.equal(bk.total_cents, 500); assert.equal(bk.status, 'pending_payment'); assert.equal(bk.customer_email, 'ann@example.com');
-  assert.equal(stripeCalls.at(-1)['line_items[0][price_data][unit_amount]'], '500');
+  assert.equal(bk.total_cents, 499); assert.equal(bk.status, 'pending_payment'); assert.equal(bk.customer_email, 'ann@example.com');
+  assert.equal(stripeCalls.at(-1)['line_items[0][price_data][unit_amount]'], '499');
   assert.match(stripeCalls.at(-1).success_url, /\/\?paid=CO-[A-Z0-9]{5}&k=/);
-  ok('checkout saves a pending booking and sends the server-computed price to Stripe (EUR 5.00 for 1 medium, 2 h)');
+  ok('checkout saves a pending booking and sends the server-computed price to Stripe (EUR 4.99 for 1 medium, 2 h)');
 
   r = await co({ ...good, items: { pack: 2, med: 0, large: 1 }, pick: { date: day, time: '14:00' } });
-  assert.equal(tables.bookings.at(-1).total_cents, 2 * 500 + 700); // 4 h => over-3-hour tier: 2x5 + 1x7
+  assert.equal(tables.bookings.at(-1).total_cents, 2 * 499 + 699); // 4 h => over-3-hour tier: 2x4.99 + 1x6.99
   ok('over 3 hours uses the higher flat price');
 
   r = await co({ ...good, total: 1, price: 1, items: { pack: 1, med: 0, large: 0 } });
-  assert.equal(tables.bookings.at(-1).total_cents, 400); ok('a price sent by the browser is ignored');
+  assert.equal(tables.bookings.at(-1).total_cents, 399); ok('a price sent by the browser is ignored');
 
   for (const [why, bad, code] of [
     ['overnight', { pick: { date: new Date(Date.parse(day) + 864e5).toISOString().slice(0, 10), time: '10:00' } }, 'same_day_only'],
@@ -315,7 +315,7 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
 
   // webhook
   const ref = bk.ref; const sessionId = 'cs_test_1';
-  const evt = (type, over = {}) => JSON.stringify({ type, data: { object: { id: sessionId, metadata: { ref }, payment_status: 'paid', amount_total: 500, currency: 'eur', ...over } } });
+  const evt = (type, over = {}) => JSON.stringify({ type, data: { object: { id: sessionId, metadata: { ref }, payment_status: 'paid', amount_total: 499, currency: 'eur', ...over } } });
   const sign = (body, t = Math.floor(Date.now() / 1000), secret = 'whsec_test') => `t=${t},v1=${createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')}`;
   const hook = (body, sig) => webhook.onRequestPost({ env, request: new Request(ORIGIN + '/api/stripe-webhook', { method: 'POST', headers: sig ? { 'stripe-signature': sig } : {}, body }) });
   let body = evt('checkout.session.completed');
