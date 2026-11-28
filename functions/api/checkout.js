@@ -3,7 +3,7 @@ import { db, eq } from '../_shared/db.js';
 import { bookToken } from '../_shared/booktoken.js';
 import { LONG_AFTER_MIN, minOf, nowInVarna, priceCents, validDate, validTime } from '../_shared/pricing.js';
 import { createCheckout } from '../_shared/stripe.js';
-import { HttpError, SOURCES, handler, isEmail, json, needEnv, normEmail, randRef, readJson, requireSameOrigin } from '../_shared/util.js';
+import { HttpError, cleanSource, handler, isEmail, json, needEnv, normEmail, randRef, readJson, requireSameOrigin } from '../_shared/util.js';
 
 const intIn = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 
@@ -27,6 +27,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const bags = items.pack + items.med + items.large;
   if (bags < 1) throw new HttpError(400, 'no_bags');
 
+  if (!cleanSource(b.source)) throw new HttpError(400, 'bad_source');
   const drop = b.drop || {}, pick = b.pick || {};
   if (![drop.time, pick.time].every(validTime) || ![drop.date, pick.date].every(validDate)) throw new HttpError(400, 'bad_time');
   if (drop.date !== pick.date) throw new HttpError(400, 'same_day_only');
@@ -61,7 +62,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
         drop_date: drop.date, drop_time: drop.time, pick_date: pick.date, pick_time: pick.time,
         n_pack: items.pack, n_med: items.med, n_large: items.large, total_cents: total, status: 'pending_payment',
       };
-      const source = SOURCES.includes(b.source) ? b.source : null;
+      const source = cleanSource(b.source);
       try { [row] = await db.insert(env, 'bookings', source ? { ...rec, source } : rec); }
       catch (e) { if (!source) throw e; [row] = await db.insert(env, 'bookings', rec); } // the source column may not exist yet
     } catch (e) { if (i === 2) throw e; }

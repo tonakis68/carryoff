@@ -274,7 +274,7 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   tables.email_log.length = 0; outbox.length = 0;
   const today = nowInVarna().date;
   const day = new Date(Date.parse(today + 'T00:00:00Z') + 2 * 864e5).toISOString().slice(0, 10);
-  const good = { partner: 'aurora', name: 'Ann Lee', email: 'Ann@Example.com', phone: '+359 881234567', agree: true, items: { pack: 0, med: 1, large: 0 }, drop: { date: day, time: '10:00' }, pick: { date: day, time: '12:00' } };
+  const good = { partner: 'aurora', name: 'Ann Lee', email: 'Ann@Example.com', phone: '+359 881234567', agree: true, source: 'google', items: { pack: 0, med: 1, large: 0 }, drop: { date: day, time: '10:00' }, pick: { date: day, time: '12:00' } };
   const co = (b) => post(checkout, b);
 
   let r = await co(good); let j = await r.json();
@@ -292,9 +292,9 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   r = await co({ ...good, total: 1, price: 1, items: { pack: 1, med: 0, large: 0 } });
   assert.equal(tables.bookings.at(-1).total_cents, 399); ok('a price sent by the browser is ignored');
   r = await co({ ...good, source: 'instagram' }); assert.equal(r.status, 200); assert.equal(tables.bookings.at(-1).source, 'instagram');
-  r = await co({ ...good, source: '<script>' }); assert.equal(r.status, 200); assert.ok(!tables.bookings.at(-1).source);
-  r = await co({ ...good }); assert.equal(r.status, 200); assert.ok(!tables.bookings.at(-1).source);
-  ok('the "where did you hear about us" answer is saved when valid, ignored when not, and optional');
+  r = await co({ ...good, source: 'other:  a  taxi driver ' }); assert.equal(r.status, 200); assert.equal(tables.bookings.at(-1).source, 'other: a taxi driver');
+  for (const bad of ['<script>', '', undefined, 'other', 'other:', 'other: x', 'other: ' + 'y'.repeat(101)]) { r = await co({ ...good, source: bad }); assert.equal(r.status, 400, String(bad)); }
+  ok('the "where did you hear about us" answer is required: a code, or "Other" with typed text of 2 to 100 characters');
 
   for (const [why, bad, code] of [
     ['overnight', { pick: { date: new Date(Date.parse(day) + 864e5).toISOString().slice(0, 10), time: '10:00' } }, 'same_day_only'],
@@ -542,7 +542,7 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   // capacity and opening hours at checkout
   const friday = (() => { let d = new Date(Date.now() + 3 * 864e5); while (d.getUTCDay() !== 5) d = new Date(+d + 864e5); return d.toISOString().slice(0, 10); })();
   const sunday = (() => { let d = new Date(Date.now() + 3 * 864e5); while (d.getUTCDay() !== 0) d = new Date(+d + 864e5); return d.toISOString().slice(0, 10); })();
-  const co = (extra) => post(checkout, { partner: 'kafe-makedoniya', name: 'Cap Test', email: 'cap@example.com', phone: '+359 888123456', agree: true, items: { pack: 1 }, drop: { date: friday, time: '10:00' }, pick: { date: friday, time: '12:00' }, ...extra });
+  const co = (extra) => post(checkout, { partner: 'kafe-makedoniya', name: 'Cap Test', email: 'cap@example.com', phone: '+359 888123456', agree: true, source: 'google', items: { pack: 1 }, drop: { date: friday, time: '10:00' }, pick: { date: friday, time: '12:00' }, ...extra });
   assert.equal((await co({ drop: { date: friday, time: '07:00' } })).status, 409); ok('checkout refuses a drop-off before opening');
   assert.equal((await co({ pick: { date: friday, time: '19:45' } })).status, 409); ok('checkout refuses pick-up in the last 30 minutes before closing');
   assert.equal((await co({ drop: { date: sunday, time: '10:00' }, pick: { date: sunday, time: '12:00' } })).status, 409); ok('checkout refuses a closed day');

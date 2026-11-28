@@ -111,4 +111,11 @@ export function needEnv(env, names) {
 
 // Version of /terms.html the customer agrees to at checkout (kept in Stripe metadata as proof).
 export const SOURCES = ['google', 'maps', 'host', 'sticker', 'friend', 'instagram', 'facebook', 'tiktok', 'other']; // where customers heard about us
+// The answer to "how did you hear about us": one of the codes, or "other: <typed text>". Returns null if invalid.
+export function cleanSource(v) {
+  const s = String(v ?? '').trim();
+  if (SOURCES.includes(s) && s !== 'other') return s;
+  const m = /^other:\s*(.+)$/is.exec(s), t = m && m[1].replace(/\s+/g, ' ').trim();
+  return t && t.length >= 2 && t.length <= 100 ? 'other: ' + t : null;
+}
 export const TERMS_VERSION = '2026-11-28';
