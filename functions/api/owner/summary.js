@@ -31,8 +31,8 @@ export const onRequestGet = handler(async ({ request, env }) => {
     if (b.status === 'stored' || b.status === 'returned') { t.bags += n; t.revCents += b.total_cents; t.bookings += 1; } else if (b.status === 'booked') t.pending += n;
   }
   const payouts = await db.select(env, 'payouts', { select: 'partner_id,month,status,bags,amount_cents,paid_at' });
-  const lf = await db.select(env, 'late_fees', { filters: { status: eq('paid') }, select: 'partner_id,month,partner_cents,fee_cents', limit: 5000 }).catch(() => []); // table may not exist yet
+  const lf = await db.select(env, 'late_fees', { filters: { status: eq('paid') }, select: 'partner_id,month,partner_cents,fee_cents,partner_paid_at', limit: 5000 }).catch(() => []); // table may not exist yet
   const lateFees = {}; // "partner|month" -> { partnerCents, feeCents }
-  for (const f of lf) { const t = (lateFees[`${f.partner_id}|${f.month}`] ||= { partnerCents: 0, feeCents: 0 }); t.partnerCents += f.partner_cents; t.feeCents += f.fee_cents; }
+  for (const f of lf) { const t = (lateFees[`${f.partner_id}|${f.month}`] ||= { partnerCents: 0, feeCents: 0 }); if (!f.partner_paid_at) t.partnerCents += f.partner_cents; t.feeCents += f.fee_cents; }
   return json({ ok: true, today, payCents: PAYOUT_CENTS, stats: Object.values(stats), payouts, sources, others, lateFees });
 });

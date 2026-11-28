@@ -46,6 +46,7 @@ function matches(row, k, v) {
   const [op, ...r] = v.split('.'); const val = r.join('.');
   const x = row[k];
   if (op === 'eq') return String(x) === val;
+  if (op === 'is') return val === 'null' ? x == null || x === undefined : x != null;
   if (op === 'gte') return String(x) >= val;
   if (op === 'gt') return String(x) > val;
   if (op === 'lt') return String(x) < val;
@@ -479,16 +480,21 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
     const sid = tables.late_fees[0].stripe_session_id, evt = { type: 'checkout.session.completed', data: { object: { id: sid, metadata: { ref: 'CO-LAST1', kind: 'late_fee' }, payment_status: 'paid', amount_total: 4500, currency: 'eur' } } };
     assert.equal((await lhook({ ...evt, data: { object: { ...evt.data.object, amount_total: 100 } } })).status, 200); assert.equal(tables.late_fees[0].status, 'sent');
     await lhook(evt); assert.equal(tables.late_fees[0].status, 'paid'); const mails = outbox.length; await lhook(evt); assert.equal(outbox.length, mails);
-    assert.equal(tables.bookings.find((x) => x.ref === 'CO-LAST1').status, 'returned'); ok('the fee is marked paid once, the customer gets a receipt, the booking is untouched; a wrong amount is ignored');
+    assert.match(outbox.at(-1).subject, /Pay .* now/); assert.equal(outbox.filter((m) => /Pay .* now/.test(m.subject)).length, 1); assert.equal(tables.bookings.find((x) => x.ref === 'CO-LAST1').status, 'returned'); ok('the fee is marked paid once, the customer gets a receipt, the booking is untouched; a wrong amount is ignored');
     assert.equal((await post(oLate, { ref: 'CO-LAST1', send: true }, owner)).status, 409); ok('a paid late fee cannot be charged twice');
     const sj2 = await (await get(oSummary, owner)).json(); assert.equal(sj2.lateFees[`aurora|${last.slice(0, 7)}`].partnerCents, 2250);
-    assert.equal((await (await get(oLate, owner)).json()).fees.length, 1); ok('owner sees the paid fee and the partner share');
+    assert.equal((await (await get(oLate, owner)).json()).fees.length, 1); assert.equal((await (await get(oLate, owner)).json()).fees[0].due, true); ok('owner sees the paid fee and the partner share; a fee from a finished month is due now, and the owner is emailed');
   }
   assert.equal((await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, aurora)).status, 401);
   r = await (await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, owner)).json();
   assert.equal(r.payout.amount_cents, 150 + 2250); assert.equal(r.payout.status, 'paid');
   await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, owner); assert.equal(tables.payouts.length, 1); ok('owner marks a month as paid: 3 bags x EUR 0.50 plus half of the late fee, once');
   j = await (await get(pBookings, aurora)).json(); assert.equal(j.payouts[0].status, 'paid'); ok('partner sees the month as paid');
+  assert.equal((await post(oLate, { ref: 'CO-LAST1', partnerPaid: true }, aurora)).status, 401);
+  assert.equal((await post(oLate, { ref: 'CO-LAST1', partnerPaid: true }, owner)).status, 200);
+  assert.ok(tables.late_fees[0].partner_paid_at); assert.equal((await (await get(oLate, owner)).json()).fees[0].due, false);
+  assert.equal((await (await get(oSummary, owner)).json()).lateFees[`aurora|${last.slice(0, 7)}`].partnerCents, 0);
+  await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, owner); assert.equal(tables.payouts[0].amount_cents, 150); ok('"Mark as paid" on a due fee stops it counting in the monthly payout, so it is never paid twice');
 }
 
 

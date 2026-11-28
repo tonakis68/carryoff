@@ -1,6 +1,6 @@
 import { db, eq } from '../../_shared/db.js';
 import { sendMail, tpl } from '../../_shared/mail.js';
-import { lateFee } from '../../_shared/pricing.js';
+import { lateFee, nowInVarna } from '../../_shared/pricing.js';
 import { requireRole } from '../../_shared/session.js';
 import { createCheckout, expireCheckout } from '../../_shared/stripe.js';
 import { HttpError, handler, json, needEnv, readJson, requireSameOrigin } from '../../_shared/util.js';
@@ -9,7 +9,10 @@ import { HttpError, handler, json, needEnv, readJson, requireSameOrigin } from '
 export const onRequestGet = handler(async ({ request, env }) => {
   await requireRole(env, request, 'owner');
   const fees = await db.select(env, 'late_fees', { order: 'created_at.desc', limit: 50 }).catch(() => []);
-  return json({ ok: true, fees });
+  const names = Object.fromEntries((await db.select(env, 'partners', { select: 'id,name', limit: 500 }).catch(() => [])).map((p) => [p.id, p.name]));
+  const cur = nowInVarna().date.slice(0, 7);
+  // "due": paid by the customer, its month is over, and the partner's half is not yet sent
+  return json({ ok: true, fees: fees.map((f) => ({ ...f, partner: names[f.partner_id] || f.partner_id, due: f.status === 'paid' && !f.partner_paid_at && f.month < cur })) });
 });
 
 export const onRequestPost = handler(async ({ request, env }) => {
@@ -22,6 +25,12 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const bk = (await db.select(env, 'bookings', { filters: { ref: eq(ref) }, limit: 1 }))[0];
   if (!bk) throw new HttpError(404, 'not_found');
   if (bk.status !== 'stored' && bk.status !== 'returned') throw new HttpError(409, 'wrong_status'); // the bags must have been received
+  if (b.partnerPaid) { // the owner sent the partner's half by bank transfer
+    const fe = (await db.select(env, 'late_fees', { filters: { ref: eq(ref) }, limit: 1 }))[0];
+    if (!fe || fe.status !== 'paid') throw new HttpError(409, 'wrong_status');
+    await db.update(env, 'late_fees', { ref: eq(ref), partner_paid_at: 'is.null' }, { partner_paid_at: new Date().toISOString() });
+    return json({ ok: true });
+  }
   const fee = lateFee(bk.total_cents);
   const prev = (await db.select(env, 'late_fees', { filters: { ref: eq(ref) }, limit: 1 }))[0];
   if (prev && prev.status === 'paid') throw new HttpError(409, 'already_paid');

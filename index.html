@@ -3567,6 +3567,8 @@ function lfInner(){
   if(L.err)h+='<p class="note" role="alert" style="margin:0;color:var(--bad,#b3261e)">'+esc(L.err)+'</p>';
   if(p)h+='<p class="note" style="margin:0"><strong>'+esc(p.name)+'</strong> · '+esc(p.email)+'<br>'+T("Late fee")+': <strong>'+fmt.format(p.feeCents/100)+'</strong> · '+T("Partner gets")+': '+fmt.format(p.partnerCents/100)+'</p><button type="button" class="btn" data-lfsend="1"'+(L.busy?' disabled':'')+'>'+(p.resend?T("Send the link again"):T("Send payment link"))+'</button>';
   if(L.sent)h+='<p class="note" style="margin:0"><strong>'+T("Link sent to the customer.")+'</strong> '+T("You can also send it yourself:")+'<br><input readonly class="big" value="'+esc(L.sent.url)+'" onfocus="this.select()"></p>';
+  var list=pv.lfList||[],due=list.filter(function(f){return f.due});
+  if(due.length)h=due.map(function(f){return '<div class="note" style="margin:0;padding:10px;border:1px solid var(--line);border-radius:10px"><strong>'+T("Pay now")+':</strong> '+esc(f.partner)+' · '+fmt.format(f.partner_cents/100)+' <span style="opacity:.7">('+esc(f.ref)+')</span><br><button type="button" class="btn sec2" data-lfpaid="'+esc(f.ref)+'" style="min-height:36px;padding:4px 10px;margin-top:6px">'+T("Mark as paid")+'</button></div>'}).join('')+h;
   var list=pv.lfList||[];
   if(list.length)h+='<div class="tscroll"><table class="tiers"><thead><tr><th scope="col">'+T("Booking")+'</th><th scope="col">'+T("Fee")+'</th><th scope="col">'+T("Status")+'</th></tr></thead><tbody>'+list.map(function(f){return '<tr><th scope="row">'+esc(f.ref)+'</th><td>'+fmt.format(f.fee_cents/100)+'</td><td>'+(f.status==='paid'?T("Paid"):T("Waiting for payment"))+'</td></tr>'}).join('')+'</tbody></table></div>';
   return h;
@@ -3574,6 +3576,8 @@ function lfInner(){
 function lfBlock(){return '<div><h3 style="margin:0 0 6px;font-size:15px">'+T("Late collection fee")+'</h3><p class="note" style="margin:0 0 8px">'+T("For bags collected after the agreed time: the customer pays 3 times the booking price by payment link, and the partner gets half.")+'</p><div id="lfBox" style="display:grid;gap:10px">'+lfInner()+'</div></div>'}
 function lfDraw(){var b=document.getElementById('lfBox');if(b)b.innerHTML=lfInner()}
 document.addEventListener('click',function(e){
+  var pd=e.target.closest('[data-lfpaid]');
+  if(pd){pd.disabled=true;api('/api/owner/latefee',{ref:pd.getAttribute('data-lfpaid'),partnerPaid:true}).then(function(j){if(j.ok)loadOwner();else pd.disabled=false});return}
   var c=e.target.closest('[data-lfcheck]'),s=e.target.closest('[data-lfsend]');if(!c&&!s)return;
   var L=pv.lf=pv.lf||{},inp=document.getElementById('lfRef');if(inp)L.ref=inp.value.trim().toUpperCase();
   if(c){L.err='';L.sent=null;L.prev=null;api('/api/owner/latefee',{ref:L.ref}).then(function(j){if(j.ok)L.prev=j.preview;else L.err=lfErr(j);lfDraw()});return}

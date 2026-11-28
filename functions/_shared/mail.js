@@ -168,6 +168,12 @@ export const tpl = {
     text: `${hiText(b.name)}\n\nYour bags for booking ${b.ref} were collected after the agreed time, so the late collection fee in our terms applies: EUR ${b.fee}. Please pay it here: ${b.url}\n\nThe link works for 23 hours. If you have a question, reply to this email.`,
     html: wrap('Late collection fee', `<p>${hi(b.name)}</p><p>Your bags for booking <b>${esc(b.ref || '')}</b> were collected after the agreed time, so the late collection fee in our terms applies: <b>€${esc(b.fee || '')}</b>.</p><p style="margin:0 0 14px"><a href="${esc(b.url)}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:700">Pay the late fee</a></p><p>The link works for 23 hours. If you have a question, reply to this email.</p>`),
   }),
+  lateFeeDue: (b = {}) => ({
+    kind: 'late_fee_due',
+    subject: `Pay ${b.partner} EUR ${b.amount} now (late fee ${b.ref})`,
+    text: `A late collection fee for booking ${b.ref} was paid. Its month is over, so send ${b.partner} their half now: EUR ${b.amount}. Then tap "Mark as paid" in the owner view (Earnings > Late collection fee).`,
+    html: wrap('Pay the partner now', `<p>A late collection fee for booking <b>${esc(b.ref || '')}</b> was paid. Its month is over, so send <b>${esc(b.partner || '')}</b> their half now: <b>€${esc(b.amount || '')}</b>.</p><p>Then tap “Mark as paid” in the owner view (Earnings &gt; Late collection fee).</p>`),
+  }),
   lateFeePaid: (b = {}) => ({
     kind: 'late_fee_paid',
     subject: 'Late fee received for booking ' + (b.ref || ''),

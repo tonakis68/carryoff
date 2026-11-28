@@ -1,6 +1,7 @@
 import { bookToken } from '../_shared/booktoken.js';
 import { db, eq } from '../_shared/db.js';
 import { sendMail, tpl } from '../_shared/mail.js';
+import { nowInVarna } from '../_shared/pricing.js';
 import { verifyWebhook } from '../_shared/stripe.js';
 import { handler, json } from '../_shared/util.js';
 
@@ -55,6 +56,10 @@ async function lateFeePaid(env, ev, s, ref) {
   if (flipped.length) {
     const bk = (await db.select(env, 'bookings', { filters: { ref: eq(ref) }, limit: 1 }))[0] || {};
     if (bk.customer_email) await sendMail(env, { to: bk.customer_email, ...tpl.lateFeePaid({ ref, name: bk.customer_name, fee: (fee.fee_cents / 100).toFixed(2) }) });
+    if (fee.month < nowInVarna().date.slice(0, 7) && env.OWNER_EMAIL) { // its month is over: the partner's half is due now
+      const pn = (await db.select(env, 'partners', { filters: { id: eq(fee.partner_id) }, select: 'name', limit: 1 }))[0];
+      await sendMail(env, { to: env.OWNER_EMAIL, ...tpl.lateFeeDue({ ref, partner: pn?.name || fee.partner_id, amount: (fee.partner_cents / 100).toFixed(2) }) });
+    }
   } else console.error('late fee paid again or out of order', ref, s.id);
   return json({ ok: true });
 }

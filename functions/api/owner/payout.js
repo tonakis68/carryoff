@@ -20,7 +20,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
   });
   const bags = rows.reduce((a, r) => a + r.n_pack + r.n_med + r.n_large, 0);
   // plus the partner's half of every late fee paid for this month's bookings
-  const fees = await db.select(env, 'late_fees', { filters: { partner_id: eq(partner), month: eq(month), status: eq('paid') }, select: 'partner_cents', limit: 1000 }).catch(() => []);
+  const fees = await db.select(env, 'late_fees', { filters: { partner_id: eq(partner), month: eq(month), status: eq('paid'), partner_paid_at: 'is.null' }, select: 'partner_cents', limit: 1000 }).catch(() => []);
   const feeCents = fees.reduce((a, r) => a + r.partner_cents, 0);
   const row = await db.upsert(env, 'payouts', { partner_id: partner, month, bags, amount_cents: bags * 50 + feeCents, status: 'paid', paid_at: new Date().toISOString() }, 'partner_id,month');
   return json({ ok: true, payout: row[0] });

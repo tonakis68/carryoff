@@ -161,3 +161,6 @@ create table if not exists late_fees (
 alter table late_fees enable row level security;
 revoke all on late_fees from anon, authenticated;
 grant all on late_fees to service_role;
+
+-- Partner's half paid out straight away (fee paid after its month had ended)
+alter table late_fees add column if not exists partner_paid_at timestamptz;
