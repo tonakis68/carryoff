@@ -21,7 +21,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
     opens: hhmm(b.opens), closes: hhmm(b.closes),
     days: Array.isArray(b.days) ? [...new Set(b.days.map(Number).filter((d) => d >= 0 && d <= 6))] : [],
   };
-  if (!/^\d{9,13}$/.test(a.eik) || !a.vat || a.name.length < 2 || a.address.length < 4 || a.contact.length < 2 || a.phone.length < 5 || !isEmail(email)
+  if (!/^\d{9,13}$/.test(a.eik) || !a.vat || a.reg_address.length < 4 || a.name.length < 2 || a.address.length < 4 || a.contact.length < 2 || a.phone.length < 5 || !isEmail(email)
       || !a.opens || !a.closes || a.closes <= a.opens || !a.days.length || a.cap_pack + a.cap_med + a.cap_large < 1) {
     throw new HttpError(400, 'invalid');
   }

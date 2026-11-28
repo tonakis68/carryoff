@@ -219,7 +219,7 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
 // ---------- partner application ----------
 {
   outbox.length = 0;
-  const good = { name: 'Blue Door Hostel', eik: '208 759 663', vat: 'no', rep_name: 'Petar', rep_position: 'owner', type: 'Hotel or hostel', address: 'ul. Slivnitsa 1, Varna', contact: 'Ivan', phone: '+359 88 123 4567', email: 'Ivan@Blue.example', cap_pack: 10, cap_med: 5, cap_large: 2, opens: '09:00', closes: '18:00', days: [1, 2, 3] };
+  const good = { name: 'Blue Door Hostel', eik: '208 759 663', reg_address: 'ul. Test 5, Varna', vat: 'no', rep_name: 'Petar', rep_position: 'owner', type: 'Hotel or hostel', address: 'ul. Slivnitsa 1, Varna', contact: 'Ivan', phone: '+359 88 123 4567', email: 'Ivan@Blue.example', cap_pack: 10, cap_med: 5, cap_large: 2, opens: '09:00', closes: '18:00', days: [1, 2, 3] };
   let r = await post(apply, good); const b = await r.json();
   assert.equal(b.ok, true); assert.match(b.ref, /^P-[A-Z2-9]{4}$/);
   assert.equal(tables.partner_applications[0].email, 'ivan@blue.example'); assert.equal(tables.partner_applications[0].eik, '208759663'); assert.match(outbox.at(-1).html, /208759663/);
