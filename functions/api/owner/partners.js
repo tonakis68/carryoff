@@ -1,6 +1,6 @@
 import { cleanHours } from '../../_shared/hours.js';
 import { db, eq } from '../../_shared/db.js';
-import { geocode, inVarna, parseMapsPin, publicPin } from '../../_shared/geocode.js';
+import { distMeters, geocode, inVarna, parseMapsPin, publicPin } from '../../_shared/geocode.js';
 import { sendMail, tpl } from '../../_shared/mail.js';
 import { requireRole } from '../../_shared/session.js';
 import { HttpError, handler, isEmail, json, needEnv, normEmail, readJson, requireSameOrigin } from '../../_shared/util.js';
@@ -15,7 +15,7 @@ export const onRequestGet = handler(async ({ request, env }) => {
   await requireRole(env, request, 'owner');
   const cols = 'id,name,type,area,email,phone,address,contact,cap,active,paused,hours,lat,lng,descr,created_at';
   const qp = (c) => db.select(env, 'partners', { select: c, order: 'created_at.desc', limit: 300 });
-  const partners = await qp(`${cols},radius`).catch(() => qp(cols)); // radius column may not exist yet
+  const partners = await qp(`${cols},radius,circle_lat,circle_lng`).catch(() => qp(`${cols},radius`)).catch(() => qp(cols)); // new columns may not exist yet
   const applications = await db.select(env, 'partner_applications', { filters: { status: eq('pending') }, order: 'created_at.desc', limit: 100 });
   return json({ ok: true, partners, applications });
 });
@@ -75,14 +75,23 @@ export const onRequestPost = handler(async ({ request, env }) => {
   if (!c && !isUpdate && address.length >= 4) c = await geocode(address).catch(() => null);
   if (!c && !isUpdate) throw new HttpError(422, 'geocode_failed');
   if (c && !inVarna(c)) throw new HttpError(422, 'outside_varna');
+  // The circle can be moved off the pin, but the pin (and its public offset of up to 90 m) must stay inside it.
+  const hasCircle = b.clat != null && b.clat !== '' && b.clng != null && b.clng !== '' && Number.isFinite(+b.clat) && Number.isFinite(+b.clng);
+  const real = c || (current ? { lat: current.lat, lng: current.lng } : null);
+  const circle = { circle_lat: null, circle_lng: null };
+  if (hasCircle && real) {
+    const cc = { lat: +b.clat, lng: +b.clng };
+    if (!inVarna(cc) || distMeters(real, cc) > radius - 90) throw new HttpError(400, 'invalid');
+    circle.circle_lat = +cc.lat.toFixed(6); circle.circle_lng = +cc.lng.toFixed(6);
+  }
 
   if (isUpdate) {
     const dup = await db.select(env, 'partners', { filters: { email: eq(email) }, select: 'id', limit: 5 });
     if (dup.some((p) => p.id !== current.id)) throw new HttpError(409, 'email_taken');
-    const patch = { name, email, phone, address, contact: clean(b.contact, 120), type: clean(b.type, 60), area, descr: clean(b.desc, 300), cap, hours: newHours, radius };
+    const patch = { name, email, phone, address, contact: clean(b.contact, 120), type: clean(b.type, 60), area, descr: clean(b.desc, 300), cap, hours: newHours, radius, ...circle };
     if (c) { const pin = publicPin(current.id, c); Object.assign(patch, { lat: c.lat, lng: c.lng, pub_lat: pin.lat, pub_lng: pin.lng }); }
     const done = await db.update(env, 'partners', { id: eq(current.id) }, patch).catch(async () => {
-      const { radius: _r, ...rest } = patch; // radius column may not exist yet
+      const { radius: _r, circle_lat: _a, circle_lng: _b, ...rest } = patch; // new columns may not exist yet
       return db.update(env, 'partners', { id: eq(current.id) }, rest);
     });
     return json({ ok: true, id: current.id, partner: { id: current.id, name, lat: done[0].lat, lng: done[0].lng } });
@@ -99,7 +108,7 @@ export const onRequestPost = handler(async ({ request, env }) => {
     perks: Array.isArray(b.perks) ? b.perks.map((x) => clean(x, 60)).filter(Boolean).slice(0, 6) : [],
     cap, hours, lat: c.lat, lng: c.lng, pub_lat: pin.lat, pub_lng: pin.lng, active: true, paused: false,
   };
-  const made = await db.insert(env, 'partners', { ...row, radius }).catch(() => db.insert(env, 'partners', row)); // radius column may not exist yet
+  const made = await db.insert(env, 'partners', { ...row, radius, ...circle }).catch(() => db.insert(env, 'partners', row)); // radius column may not exist yet
   if (b.appRef) await db.update(env, 'partner_applications', { ref: eq(String(b.appRef)) }, { status: 'approved' });
   let mailed = true;
   try { await sendMail(env, { to: email, ...tpl.partnerWelcome({ name, contact: clean(b.contact, 120), origin: new URL(request.url).origin }) }); } catch { mailed = false; }

@@ -140,3 +140,4 @@ alter table partner_applications add column if not exists reg_address text, add 
 alter table partner_applications add column if not exists bfrom text, add column if not exists bto text;
 alter table partner_applications add column if not exists hours jsonb;
 alter table partners add column if not exists radius int;
+alter table partners add column if not exists circle_lat double precision, add column if not exists circle_lng double precision;

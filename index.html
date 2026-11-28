@@ -2736,12 +2736,12 @@ function hsh(str){var h=2166136261;for(var i=0;i<str.length;i++){h^=str.charCode
 function pos(l){return shown(l)&&l.ex?l.ex:{x:l.x,y:l.y}}
 /* Places come from the server (/api/partners). The public list carries only an approximate pin and an area, never the name or address. */
 function buildLoc(p){
-  var q=proj(p.lat,p.lng),l={id:p.id,name:'',type:p.type||'Place',area:p.area||'',addr:p.area||'',desc:p.desc||'',perks:p.perks||[],cap:p.cap,hours:p.hours,paused:!!p.paused,radius:Math.max(150,+p.radius||200),x:q.x,y:q.y,busy:0};
+  var q=proj(p.lat,p.lng),l={id:p.id,name:'',type:p.type||'Place',area:p.area||'',addr:p.area||'',desc:p.desc||'',perks:p.perks||[],cap:p.cap,hours:p.hours,paused:!!p.paused,radius:Math.max(150,+p.radius||200),cl:(p.clat!=null&&p.clng!=null)?proj(p.clat,p.clng):null,x:q.x,y:q.y,busy:0};
   l.tt={};STATIONS.forEach(function(s){l.tt[s.id]=travel(l,s)});return l;
 }
 function applyPlaces(j,first){
   if(first){LOCS.length=0;(j.places||[]).forEach(function(p){LOCS.push(buildLoc(p))})}
-  else (j.places||[]).forEach(function(p){var l=byId(p.id);if(l){l.paused=!!p.paused;l.cap=p.cap;l.hours=p.hours;l.radius=Math.max(150,+p.radius||200)}});
+  else (j.places||[]).forEach(function(p){var l=byId(p.id);if(l){l.paused=!!p.paused;l.cap=p.cap;l.hours=p.hours;l.radius=Math.max(150,+p.radius||200);l.cl=(p.clat!=null&&p.clng!=null)?proj(p.clat,p.clng):null}});
   state.booked={};Object.keys(j.booked||{}).forEach(function(k){state.booked[k.replace('|','')]=j.booked[k]});
 }
 
@@ -2840,7 +2840,7 @@ function mapText(){
 }
 mapText();
 function mkPin(loc){
-  var hc=L.circle(posLL(loc),{radius:loc.radius||HALO_M,interactive:false,className:'m-halo'}).addTo(haloLayer);haloEls[loc.id]=hc;
+  var hc=L.circle(loc.cl?toLL(loc.cl.x,loc.cl.y):posLL(loc),{radius:loc.radius||HALO_M,interactive:false,className:'m-halo'}).addTo(haloLayer);haloEls[loc.id]=hc;
   var el=document.createElement('div');el.className='pin';el.setAttribute('tabindex','0');el.setAttribute('role','button');
   el.innerHTML='<svg width="32" height="38" viewBox="-16 -38 32 38" aria-hidden="true"><path class="pin-tail" d="M0 0 L-8 -11 L8 -11 Z"/><circle class="pin-body" cx="0" cy="-22" r="15"/><text class="pin-t" y="-17.5"></text></svg>';
   el.addEventListener('click',function(e){e.stopPropagation();choose(loc.id,true)});
@@ -2853,7 +2853,7 @@ function updatePins(){
   LOCS.forEach(function(l){
     var el=pinEls[l.id],ev=state.ev[l.id]||{status:'na',pin:'–',label:''},sel=state.sel===l.id,ll=posLL(l),hc=haloEls[l.id];
     markers[l.id].setLatLng(ll);markers[l.id].setZIndexOffset(sel?1000:0);
-    hc.setLatLng(ll);hc.setRadius(l.radius||HALO_M);var he=hc.getElement();if(he)he.setAttribute('class','m-halo s-'+ev.status+(shown(l)?' off':''));
+    hc.setLatLng(l.cl?toLL(l.cl.x,l.cl.y):ll);hc.setRadius(l.radius||HALO_M);var he=hc.getElement();if(he)he.setAttribute('class','m-halo s-'+ev.status+(shown(l)?' off':''));
     el.setAttribute('class','pin s-'+ev.status+(sel?' sel':''));
     el.querySelector('text').textContent=ev.pin;
     el.setAttribute('aria-label',nm(l)+', '+ev.label);
@@ -3341,25 +3341,37 @@ function ownerPreview(){
   var box=$('#ofPrev');
   if(prevMap){try{prevMap.remove()}catch(x){}prevMap=null;prevShapes=null}
   if(!box||!window.L)return;
+  fitNow=true;
   prevMap=L.map(box,{zoomControl:true,attributionControl:false,scrollWheelZoom:false}).setView([43.2141,27.9147],14);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(prevMap);
   prevShapes=L.layerGroup().addTo(prevMap);
-  updatePreview(true);
+  updatePreview();
 }
-function updatePreview(fit){
+function dM(a,b){var dl=(b[0]-a[0])*Math.PI/180,dn=(b[1]-a[1])*Math.PI/180*Math.cos(a[0]*Math.PI/180);return 6371000*Math.sqrt(dl*dl+dn*dn)}
+function clampC(c,p,maxD){var d=dM(c,p);if(d<=maxD||d===0)return p;var k=maxD/d;return [c[0]+(p[0]-c[0])*k,c[1]+(p[1]-c[1])*k]}
+function setCircleVals(p){var a=$('#ofClat'),b=$('#ofClng');if(!a||!b)return;a.value=p?p[0].toFixed(6):'';b.value=p?p[1].toFixed(6):''}
+function updatePreview(){
   if(!prevMap||!$('#ofPrev'))return;
   var note=$('#ofPrevNote'),txt=$('#ofCoords')?$('#ofCoords').value.trim():'',c=txt?parseCoordsText(txt):null,f=pv.addForm||{};
-  if(!c&&f.editId){var pp=(pv.ownPartners||[]).filter(function(x){return x.id===f.editId})[0];if(pp&&pp.lat!=null&&!txt)c=[pp.lat,pp.lng]}
+  if(!c&&f.editId&&!txt){var pp=(pv.ownPartners||[]).filter(function(x){return x.id===f.editId})[0];if(pp&&pp.lat!=null)c=[pp.lat,pp.lng]}
   prevShapes.clearLayers();
-  if(!c){if(note)note.textContent=txt?T("Preview needs a full Google Maps link or coordinates like 43.2, 27.9. The short link still works when you save."):T("Paste the Google Maps pin above to preview the circle customers will see.");return}
-  var r=+($('#ofRadius').value)||200;
-  L.circle(c,{radius:r,color:'#1d4ed8',weight:2,dashArray:'5 4',fillColor:'#1d4ed8',fillOpacity:.22,interactive:false}).addTo(prevShapes);
+  var rs=$('#ofCircleReset');if(rs)rs.hidden=!c;
+  if(!c){setCircleVals(null);if(note)note.textContent=txt?T("Preview needs a full Google Maps link or coordinates like 43.2, 27.9. The short link still works when you save. The circle will be centred on the pin."):T("Paste the Google Maps pin above to preview the circle customers will see.");return}
+  var r=+($('#ofRadius').value)||200,maxD=Math.max(0,r-90),cv=[parseFloat($('#ofClat').value),parseFloat($('#ofClng').value)],ctr=isNaN(cv[0])||isNaN(cv[1])?c:clampC(c,cv,maxD);
+  if(ctr!==c&&dM(c,ctr)<1)ctr=c;
+  setCircleVals(ctr===c?null:ctr);
+  var circ=L.circle(ctr,{radius:r,color:'#1d4ed8',weight:2,dashArray:'5 4',fillColor:'#1d4ed8',fillOpacity:.22,interactive:false}).addTo(prevShapes);
   L.circleMarker(c,{radius:5,color:'#fff',weight:2,fillColor:'#1d4ed8',fillOpacity:1,interactive:false}).addTo(prevShapes);
-  if(note)note.textContent=T("Preview of the circle customers see, centred on your pin. On the public map the pin sits a little off-centre inside the circle.");
+  var hd=L.marker(ctr,{icon:L.divIcon({className:'',html:'<div style="width:26px;height:26px;border-radius:50%;background:#fff;border:2px solid #1d4ed8;box-shadow:0 1px 4px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;font:700 14px/1 Arial;color:#1d4ed8">✥</div>',iconSize:[26,26],iconAnchor:[13,13]}),interactive:false,keyboard:false}).addTo(prevShapes);
+  prevMap.off('click');
+  prevMap.on('click',function(ev){var p=clampC(c,[ev.latlng.lat,ev.latlng.lng],maxD);ctrNow=p;hd.setLatLng(p);circ.setLatLng(p);setCircleVals(dM(c,p)<1?null:p)});
+  if(note)note.textContent=T("Click the map to move the circle ✥. Your pin always stays inside it. Customers see the circle and a pin placed a little off the real spot.");
   prevMap.invalidateSize();
-  prevMap.fitBounds(L.latLng(c[0],c[1]).toBounds(r*3.6),{animate:false});
+  if(!prevMap._fitted||fitNow){prevMap.fitBounds(L.latLng(c[0],c[1]).toBounds(r*3.6),{animate:false});prevMap._fitted=true;fitNow=false}
 }
-document.addEventListener('input',function(e){var t=e.target;if(t&&(t.id==='ofCoords'))updatePreview()});
+var fitNow=true,ctrNow=null;
+document.addEventListener('input',function(e){var t=e.target;if(t&&(t.id==='ofCoords')){setCircleVals(null);fitNow=true;updatePreview()}});
+document.addEventListener('click',function(e){if(e.target&&e.target.id==='ofCircleReset'){setCircleVals(null);fitNow=true;updatePreview()}});
 document.addEventListener('change',function(e){var t=e.target;if(t&&(t.id==='ofRadius'||t.id==='ofCoords'))updatePreview()});
 function ownerPartnersView(){
   var f=pv.addForm||{},msg=pv.addMsg?'<p class="'+(pv.addMsg.ok?'okmsg':'why')+'" role="status" style="margin:0">'+pv.addMsg.t+'</p>':'';
@@ -3382,7 +3394,7 @@ function ownerPartnersView(){
     inp('ofEmail',T("Email (used for their login)")+' *',f.email,'type="email" inputmode="email" autocomplete="off"')+
     inp('ofCap',T("How many bags can they hold at once")+' *',f.cap,'inputmode="numeric"')+
     '<div><label class="lab2" for="ofRadius">'+T("Circle radius on the map")+'</label><select id="ofRadius" class="big">'+[150,200,300,500].map(function(r){return '<option value="'+r+'"'+((f.radius||200)===r?' selected':'')+'>'+r+' m</option>'}).join('')+'</select></div>'+
-    '<div id="ofPrevBox"><div id="ofPrev" style="height:220px;border-radius:12px;overflow:hidden;border:1px solid var(--line)"></div><p class="note" id="ofPrevNote" style="margin:4px 0 0"></p></div>'+
+    '<div id="ofPrevBox"><input type="hidden" id="ofClat" value="'+esc(f.clat==null?'':f.clat)+'"><input type="hidden" id="ofClng" value="'+esc(f.clng==null?'':f.clng)+'"><div id="ofPrev" style="height:240px;border-radius:12px;overflow:hidden;border:1px solid var(--line)"></div><p class="note" id="ofPrevNote" style="margin:4px 0 0"></p><button type="button" class="btn sec2" id="ofCircleReset" style="min-height:36px;padding:4px 10px;align-self:flex-start;margin-top:6px">'+T("Centre the circle on the pin")+'</button></div>'+
     '<label class="chk" style="margin:2px 0"><input type="checkbox" id="ofMulti"'+(f.multi?' checked':'')+'> '+T("Different hours on some days")+'</label>'+
     '<div id="ofdBox"'+(f.multi?'':' hidden')+'>'+pdHTML('of',f.multi?f.hours:null,true)+'</div><div id="ofSimple"'+(f.multi?' hidden':'')+'>'+
     '<div style="display:flex;gap:10px"><div style="flex:1"><label class="lab2" for="ofOpen">'+T("Opens")+' *</label>'+timeSel('ofOpen',f.opens||'09:00',0)+'</div><div style="flex:1"><label class="lab2" for="ofClose">'+T("Closes")+' *</label>'+timeSel('ofClose',f.closes||'20:00',1)+'</div></div>'+
@@ -3395,7 +3407,7 @@ function ownerPartnersView(){
 }
 function readAddForm(){
   var d=[];for(var i=0;i<7;i++)if($('#od'+i)&&$('#od'+i).checked)d.push(i);
-  return {appRef:(pv.addForm||{}).appRef||'',editId:(pv.addForm||{}).editId||'',editName:(pv.addForm||{}).editName||'',mixed:(pv.addForm||{}).mixed||false,hoursChanged:(pv.addForm||{}).hoursChanged||false,name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.replace(/\D/g,'')?phoneVal('ofPhone'):'',email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,bfrom:$('#ofBFrom').value,bto:$('#ofBTo').value,radius:+$('#ofRadius').value||200,multi:$('#ofMulti').checked,hours:$('#ofMulti').checked?pdRead('of').hours:null,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
+  return {appRef:(pv.addForm||{}).appRef||'',editId:(pv.addForm||{}).editId||'',editName:(pv.addForm||{}).editName||'',mixed:(pv.addForm||{}).mixed||false,hoursChanged:(pv.addForm||{}).hoursChanged||false,name:$('#ofName').value.trim(),type:$('#ofType').value.trim(),address:$('#ofAddr').value.trim(),area:$('#ofArea').value.trim(),contact:$('#ofContact').value.trim(),phone:$('#ofPhone').value.replace(/\D/g,'')?phoneVal('ofPhone'):'',email:$('#ofEmail').value.trim(),cap:$('#ofCap').value.trim(),opens:$('#ofOpen').value,closes:$('#ofClose').value,days:d,bfrom:$('#ofBFrom').value,bto:$('#ofBTo').value,radius:+$('#ofRadius').value||200,clat:$('#ofClat').value,clng:$('#ofClng').value,multi:$('#ofMulti').checked,hours:$('#ofMulti').checked?pdRead('of').hours:null,coords:$('#ofCoords').value.trim(),desc:$('#ofDesc').value.trim()};
 }
 function checkAddForm(f){
   var miss=[];
@@ -3608,7 +3620,7 @@ pa.addEventListener('click',function(e){
    var pe=e.target.closest('[data-pedit]');if(pe){var pp=(pv.ownPartners||[]).filter(function(x){return x.id===pe.getAttribute('data-pedit')})[0];if(pp){
      var hs=pp.hours||[],first=null,days=[];hs.forEach(function(h,i){if(h){days.push(i);if(!first)first=h}});
      var mixed=hs.some(function(h){return h&&JSON.stringify(h)!==JSON.stringify(first)});
-     pv.addForm={editId:pp.id,editName:pp.name,radius:pp.radius||200,mixed:mixed,multi:mixed,hours:mixed?pp.hours:null,hoursChanged:false,name:pp.name,type:pp.type||'',address:pp.address||'',area:pp.area||'',contact:pp.contact||'',phone:pp.phone||'',email:pp.email||'',cap:String(pp.cap||''),opens:first?first[0]:'09:00',closes:first?first[1]:'20:00',bfrom:first&&first[2]||'',bto:first&&first[3]||'',days:days.length?days:[1,2,3,4,5,6],desc:pp.descr||'',coords:''};
+     pv.addForm={editId:pp.id,editName:pp.name,radius:pp.radius||200,clat:pp.circle_lat==null?'':pp.circle_lat,clng:pp.circle_lng==null?'':pp.circle_lng,mixed:mixed,multi:mixed,hours:mixed?pp.hours:null,hoursChanged:false,name:pp.name,type:pp.type||'',address:pp.address||'',area:pp.area||'',contact:pp.contact||'',phone:pp.phone||'',email:pp.email||'',cap:String(pp.cap||''),opens:first?first[0]:'09:00',closes:first?first[1]:'20:00',bfrom:first&&first[2]||'',bto:first&&first[3]||'',days:days.length?days:[1,2,3,4,5,6],desc:pp.descr||'',coords:''};
      pv.addMsg=null;pv.delAsk=null;renderPartner();window.scrollTo(0,0)}return}
    if(e.target.closest('[data-canceledit]')){pv.addForm=null;pv.addMsg=null;renderPartner();return}
    var pd=e.target.closest('[data-pdel]');if(pd){var did=pd.getAttribute('data-pdel');

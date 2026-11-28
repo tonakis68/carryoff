@@ -24,6 +24,11 @@ export function parseDMS(s) {
   return { lat: +lat.toFixed(6), lng: +lng.toFixed(6) };
 }
 
+export function distMeters(a, b) {
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180, dLng = ((b.lng - a.lng) * Math.PI) / 180 * Math.cos((a.lat * Math.PI) / 180);
+  return 6371000 * Math.sqrt(dLat * dLat + dLng * dLng);
+}
+
 export const inVarna = (c) => c.lat > 43.10 && c.lat < 43.32 && c.lng > 27.75 && c.lng < 28.10;
 
 // The public pin sits 40 to 90 m from the real door, always the same for one partner, so it never gives the exact place away.

@@ -473,6 +473,13 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
     await add({ ...base, name: 'Odd Circle', email: 'odd@example.com', coords: '43.24, 27.94', radius: 5 });
     assert.equal(tables.partners.find((p) => p.email === 'odd@example.com').radius, 200);
     const j = await (await get(pubPartners)).json(); assert.equal(j.places.find((x) => x.id.startsWith('wide-circle')).radius, 300); ok('each partner has its own map circle radius (default 200 m)'); }
+  { const mk = (o) => add({ ...base, name: 'Moved Circle', email: 'mc@example.com', coords: '43.2100, 27.9100', radius: 300, ...o });
+    assert.equal((await mk({ clat: 43.2200, clng: 27.9100 })).status, 400); // pin would fall outside the circle
+    assert.equal((await mk({ clat: 43.2110, clng: 27.9100 })).status, 201);
+    const row = tables.partners.find((p) => p.email === 'mc@example.com'); assert.equal(row.circle_lat, 43.211); assert.equal(row.circle_lng, 27.91);
+    const j = await (await get(pubPartners)).json(); const pl = j.places.find((x) => x.id.startsWith('moved-circle')); assert.equal(pl.clat, 43.211);
+    assert.equal((await add({ ...base, action: 'update', id: row.id, email: 'mc@example.com', radius: 300 })).status, 200); assert.equal(row.circle_lat, null);
+    ok('the circle can be moved off the pin, never so far that the pin leaves it'); }
   { const row = tables.partners.find((p) => p.email === 'lunch@example.com'); const before = JSON.stringify(row.hours);
     let r = await add({ ...base, action: 'update', id: row.id, name: 'Lunch Shop 2', email: 'lunch@example.com', cap: 9 }); assert.equal(r.status, 200);
     assert.equal(row.name, 'Lunch Shop 2'); assert.equal(row.cap, 9); assert.equal(JSON.stringify(row.hours), before); ok('owner can edit a partner; hours stay unless changed');
