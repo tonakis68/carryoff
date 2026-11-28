@@ -24,6 +24,7 @@ create table if not exists partner_applications (
   id          uuid primary key default gen_random_uuid(),
   ref         text not null unique,
   name        text not null,
+  eik         text,
   type        text,
   address     text not null,
   contact     text not null,
@@ -132,3 +133,6 @@ grant all on all tables in schema public to service_role;
 grant all on all sequences in schema public to service_role;
 alter default privileges in schema public grant all on tables to service_role;
 alter default privileges in schema public grant all on sequences to service_role;
+
+-- Added later: company ID (ЕИК) on partner applications
+alter table partner_applications add column if not exists eik text;

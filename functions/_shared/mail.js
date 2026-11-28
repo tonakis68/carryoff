@@ -91,9 +91,9 @@ export const tpl = {
   applicationNotice: (a) => ({
     kind: 'application_notice',
     subject: `Ново заявление за партньор: ${a.name}`,
-    text: `Референция ${a.ref}\n${a.name} (${a.type || '-'})\n${a.address}\nКонтакт: ${a.contact}, ${a.phone}, ${a.email}\nКапацитет: ${a.cap_pack} раници, ${a.cap_med} ръчен багаж, ${a.cap_large} големи куфара\nРаботно време: ${a.opens}-${a.closes}`,
+    text: `Референция ${a.ref}\n${a.name} (${a.type || '-'}), ЕИК ${a.eik || '-'}\n${a.address}\nКонтакт: ${a.contact}, ${a.phone}, ${a.email}\nКапацитет: ${a.cap_pack} раници, ${a.cap_med} ръчен багаж, ${a.cap_large} големи куфара\nРаботно време: ${a.opens}-${a.closes}`,
     html: wrap('Ново заявление за партньор',
-      `<p><b>${esc(a.name)}</b> (${esc(a.type || '-')})<br>${esc(a.address)}</p><p>Контакт: ${esc(a.contact)}<br>${esc(a.phone)}<br>${esc(a.email)}</p>` +
+      `<p><b>${esc(a.name)}</b> (${esc(a.type || '-')})<br>ЕИК: ${esc(a.eik || '-')}<br>${esc(a.address)}</p><p>Контакт: ${esc(a.contact)}<br>${esc(a.phone)}<br>${esc(a.email)}</p>` +
       `<p>Капацитет: ${a.cap_pack} раници, ${a.cap_med} ръчен багаж, ${a.cap_large} големи куфара<br>Работно време: ${esc(a.opens)}–${esc(a.closes)}</p><p>Референция: <b>${esc(a.ref)}</b></p>`),
   }),
   // Sent when the owner adds a partner: how to log in and what to do. Bulgarian only.

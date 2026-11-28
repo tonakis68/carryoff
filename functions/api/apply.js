@@ -15,13 +15,13 @@ export const onRequestPost = handler(async ({ request, env }) => {
 
   const email = normEmail(b.email);
   const a = {
-    name: clean(b.name, 120), type: clean(b.type, 60), address: clean(b.address, 200),
+    name: clean(b.name, 120), eik: String(b.eik ?? '').replace(/\s+/g, ''), type: clean(b.type, 60), address: clean(b.address, 200),
     contact: clean(b.contact, 120), phone: clean(b.phone, 40), email,
     cap_pack: int(b.cap_pack), cap_med: int(b.cap_med), cap_large: int(b.cap_large),
     opens: hhmm(b.opens), closes: hhmm(b.closes),
     days: Array.isArray(b.days) ? [...new Set(b.days.map(Number).filter((d) => d >= 0 && d <= 6))] : [],
   };
-  if (a.name.length < 2 || a.address.length < 4 || a.contact.length < 2 || a.phone.length < 5 || !isEmail(email)
+  if (!/^\d{9,13}$/.test(a.eik) || a.name.length < 2 || a.address.length < 4 || a.contact.length < 2 || a.phone.length < 5 || !isEmail(email)
       || !a.opens || !a.closes || a.closes <= a.opens || !a.days.length || a.cap_pack + a.cap_med + a.cap_large < 1) {
     throw new HttpError(400, 'invalid');
   }
@@ -34,7 +34,13 @@ export const onRequestPost = handler(async ({ request, env }) => {
   if (same.length >= 3 || all.length >= 20) throw new HttpError(429, 'too_many');
 
   a.ref = randRef('P-', 4);
-  await db.insert(env, 'partner_applications', a);
+  try {
+    await db.insert(env, 'partner_applications', a);
+  } catch (e) {
+    // The eik column may not exist yet: save without it. The EIK still reaches the owner by email.
+    const { eik, ...rest } = a;
+    await db.insert(env, 'partner_applications', rest);
+  }
   await sendMail(env, { to: env.OWNER_EMAIL, ...tpl.applicationNotice(a) });
   return json({ ok: true, ref: a.ref });
 });
