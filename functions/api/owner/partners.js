@@ -93,6 +93,6 @@ export const onRequestPost = handler(async ({ request, env }) => {
   const made = await db.insert(env, 'partners', row);
   if (b.appRef) await db.update(env, 'partner_applications', { ref: eq(String(b.appRef)) }, { status: 'approved' });
   let mailed = true;
-  try { await sendMail(env, { to: email, ...tpl.partnerWelcome({ name, origin: new URL(request.url).origin }) }); } catch { mailed = false; }
+  try { await sendMail(env, { to: email, ...tpl.partnerWelcome({ name, contact: clean(b.contact, 120), origin: new URL(request.url).origin }) }); } catch { mailed = false; }
   return json({ ok: true, id, pin, mailed, partner: { id, name, lat: c.lat, lng: c.lng } }, 201);
 });
