@@ -84,9 +84,9 @@ const hiText = (n) => (first(n) ? `Hi ${first(n)},` : 'Hello,');
 export const tpl = {
   loginCode: (code) => ({
     kind: 'login_code',
-    subject: `Your CarryOff login code: ${code}`,
-    text: `Your CarryOff login code is ${code}. It works for 10 minutes. If you did not ask for it, ignore this email.`,
-    html: wrap('Your login code', `<p style="font-size:32px;letter-spacing:6px;font-weight:700;margin:8px 0">${esc(code)}</p><p>It works for 10 minutes. If you did not ask for it, ignore this email.</p>`),
+    subject: `Вашият код за вход в CarryOff: ${code}`,
+    text: `Вашият код за вход в CarryOff е ${code}. Валиден е 10 минути. Ако не сте го поискали, игнорирайте този имейл.`,
+    html: wrap('Вашият код за вход', `<p style="font-size:32px;letter-spacing:6px;font-weight:700;margin:8px 0">${esc(code)}</p><p>Кодът е валиден 10 минути. Ако не сте го поискали, игнорирайте този имейл.</p>`),
   }),
   applicationNotice: (a) => ({
     kind: 'application_notice',
@@ -96,17 +96,21 @@ export const tpl = {
       `<p><b>${esc(a.name)}</b> (${esc(a.type || '-')})<br>${esc(a.address)}</p><p>Contact: ${esc(a.contact)}<br>${esc(a.phone)}<br>${esc(a.email)}</p>` +
       `<p>Capacity: ${a.cap_pack} backpacks, ${a.cap_med} carry-on, ${a.cap_large} large<br>Hours: ${esc(a.opens)}–${esc(a.closes)}</p><p>Reference: <b>${esc(a.ref)}</b></p>`),
   }),
-  // Sent when the owner adds a partner: how to log in and what to do. English first, Bulgarian below.
-  partnerWelcome: (b) => ({
-    kind: 'partner_welcome',
-    subject: `Welcome to CarryOff, ${b.name}`,
-    text: `${hiText(b.contact)}\n\nThank you for joining CarryOff and welcoming travellers to ${b.name}. We are glad to have you as a partner.\n\nOpen ${b.origin}, tap "For partners", enter this email address and the 6-digit code we send you. Keep your phone logged in: customers show a QR code, you scan it with the phone camera and the booking opens.\n\nЗдравейте${first(b.contact) ? ', ' + first(b.contact) : ''}! Благодарим ви, че се присъединихте към CarryOff. Добре дошли! Отворете ${b.origin}, изберете "For partners", въведете този имейл и 6-цифрения код, който ще получите. Клиентът показва QR код, а вие го сканирате с камерата на телефона.`,
-    html: wrap(`Welcome to CarryOff`,
-      `<p>${hi(b.contact)}<br>Thank you for joining CarryOff. We are glad to have <b>${esc(b.name)}</b> as a storage partner, and we look forward to working with you.</p>` +
-      `<p><b>How it works</b></p><ol style="padding-left:20px;margin:0 0 12px"><li>Open <a href="${esc(b.origin)}">${esc(b.origin.replace('https://', ''))}</a> on your phone and tap <b>For partners</b>.</li><li>Enter this email address. We send you a 6-digit code. Stay logged in on the phone.</li><li>When a customer arrives, scan their QR code with the phone camera (or type the booking code). Check the bags, write a tag number for each, take a photo, tap <b>Bags received</b>.</li><li>When they come back, scan the QR again, check the ID and the tags, tap <b>Bags returned</b>.</li></ol>` +
-      `<p>You earn <b>€0.50 per bag</b> stored, paid monthly by bank transfer. Questions: hello@carryoff.eu</p><hr style="border:0;border-top:1px solid #e3e8f4;margin:16px 0">` +
-      `<p><b>Добре дошли в CarryOff${first(b.contact) ? ', ' + esc(first(b.contact)) : ''}!</b></p><p>Благодарим ви, че се присъединихте към нас. Отворете ${esc(b.origin.replace('https://', ''))} на телефона и изберете <b>For partners</b>. Въведете този имейл и 6-цифрения код, който получавате. Когато клиент дойде, сканирайте QR кода му с камерата, проверете багажа, запишете номер на етикет за всеки багаж, направете снимка и натиснете <b>Bags received</b>. При връщане сканирайте отново, проверете документа за самоличност и етикетите и натиснете <b>Bags returned</b>. Получавате <b>0,50 € на багаж</b>, плащане веднъж месечно по банков път.</p>`),
-  }),
+  // Sent when the owner adds a partner: how to log in and what to do. Bulgarian only.
+  partnerWelcome: (b) => {
+    const nm = first(b.contact);
+    return {
+      kind: 'partner_welcome',
+      subject: `Добре дошли в CarryOff, ${b.name}`,
+      text: `Здравейте${nm ? ', ' + nm : ''}!\n\nБлагодарим ви, че се присъединихте към CarryOff, и че приемате пътници в ${b.name}. Радваме се да работим заедно.\n\n` +
+        `Как работи:\n1. Отворете ${b.origin} на телефона и изберете „For partners“.\n2. Въведете този имейл. Изпращаме ви 6-цифрен код. Останете влезли в телефона.\n3. Когато клиент дойде, сканирайте QR кода му с камерата на телефона (или въведете кода на резервацията). Проверете багажа, запишете номер на етикет за всеки багаж, направете снимка и натиснете „Bags received“.\n4. При връщане сканирайте QR кода отново, проверете документа за самоличност и етикетите и натиснете „Bags returned“.\n\n` +
+        `Получавате 0,50 € за всеки съхранен багаж, с плащане веднъж месечно по банков път. Въпроси: hello@carryoff.eu`,
+      html: wrap('Добре дошли в CarryOff',
+        `<p>${nm ? `Здравейте, ${esc(nm)}!` : 'Здравейте!'}<br>Благодарим ви, че се присъединихте към CarryOff. Радваме се, че <b>${esc(b.name)}</b> е наш партньор за съхранение, и че ще работим заедно.</p>` +
+        `<p><b>Как работи</b></p><ol style="padding-left:20px;margin:0 0 12px"><li>Отворете <a href="${esc(b.origin)}">${esc(b.origin.replace('https://', ''))}</a> на телефона и изберете <b>For partners</b>.</li><li>Въведете този имейл. Изпращаме ви 6-цифрен код. Останете влезли в телефона.</li><li>Когато клиент дойде, сканирайте QR кода му с камерата на телефона (или въведете кода на резервацията). Проверете багажа, запишете номер на етикет за всеки багаж, направете снимка и натиснете <b>Bags received</b>.</li><li>При връщане сканирайте QR кода отново, проверете документа за самоличност и етикетите и натиснете <b>Bags returned</b>.</li></ol>` +
+        `<p>Получавате <b>0,50 €</b> за всеки съхранен багаж, с плащане веднъж месечно по банков път. Въпроси: hello@carryoff.eu</p>`),
+    };
+  },
   // Booking confirmation, sent only after Stripe confirms the payment.
   bookingConfirmed: (b) => {
     const dir = b.lat != null && b.lng != null ? `https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}` : '';

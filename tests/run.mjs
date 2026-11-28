@@ -477,7 +477,7 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   const row = tables.partners.find((p) => p.id === 'kafe-makedoniya');
   assert.equal(row.email, 'ivan@example.com'); assert.equal(row.lat, 43.2051); assert.deepEqual(row.hours[0], null); assert.deepEqual(row.hours[1], ['08:00', '20:00']); assert.ok(geoCalls.at(-1).includes('Varna'));
   const dist = Math.hypot((row.pub_lat - row.lat) * 111320, (row.pub_lng - row.lng) * 111320 * Math.cos(row.lat * Math.PI / 180)); assert.ok(dist > 30 && dist < 100, 'pin offset ' + dist);
-  assert.match(outbox.at(-1).subject, /Welcome/); assert.ok(JSON.stringify(outbox.at(-1).to).includes('ivan@example.com')); ok('owner adds a partner: located, public pin offset, hours saved, welcome email sent');
+  assert.match(outbox.at(-1).subject, /Добре дошли/); assert.ok(JSON.stringify(outbox.at(-1).to).includes('ivan@example.com')); ok('owner adds a partner: located, public pin offset, hours saved, welcome email sent');
   assert.equal((await add(base)).status, 409); ok('the same email cannot be used for two partners');
   r = await add({ ...base, name: 'Кафе Македония', email: 'second@example.com', coords: '43.2100, 27.9200' }); j = await r.json(); assert.equal(j.id, 'kafe-makedoniya-2'); ok('same name gets its own id; pasted coordinates are used');
   j = await (await get(oPartners, ownerC)).json(); assert.ok(j.partners.some((p) => p.id === 'kafe-makedoniya')); assert.ok(!('applications' in j) || Array.isArray(j.applications));
