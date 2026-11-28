@@ -81,7 +81,7 @@ input[type=date],input[type=text],input[type=email],input[type=tel],select{backg
 .items{display:flex;gap:12px;flex-wrap:wrap}
 .item{flex:1 1 190px;min-width:0}
 .iname{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:600;margin-bottom:6px}
-.iname span{color:var(--ink-2);font-weight:400;font-variant-numeric:tabular-nums}
+.iname>span{color:var(--ink-2);font-weight:400;font-variant-numeric:tabular-nums}
 .stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;background:var(--bg);overflow:hidden;min-height:42px}
 .stepper button{width:46px;align-self:stretch;border:0;background:transparent;font-size:20px;cursor:pointer}
 .stepper button:hover{background:var(--surface-2)}
@@ -2739,6 +2739,12 @@ function applyPlaces(j,first){
   state.booked={};Object.keys(j.booked||{}).forEach(function(k){state.booked[k.replace('|','')]=j.booked[k]});
 }
 
+var BAGICON={
+ pack:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6V5a3 3 0 0 1 6 0v1"/><rect x="5" y="6" width="14" height="15" rx="4.5"/><rect x="8.5" y="13" width="7" height="5" rx="1.5"/><path d="M8.5 10h7"/></svg>',
+ med:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6.5V3.5h4v3"/><rect x="6.5" y="6.5" width="11" height="13" rx="2.5"/><path d="M10.5 10v6M13.5 10v6"/><circle cx="9" cy="21.5" r=".6"/><circle cx="15" cy="21.5" r=".6"/></svg>',
+ large:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5V3h7v2.5"/><rect x="3" y="5.5" width="18" height="14.5" rx="3"/><path d="M8.5 9v7.5M15.5 9v7.5"/><circle cx="7.5" cy="22" r=".6"/><circle cx="16.5" cy="22" r=".6"/></svg>'
+};
+function bagIcon(k){return '<span class="bi">'+(BAGICON[k]||'')+'</span>'}
 var state={view:'list',sel:null,onlyAvail:false,sort:'rec',items:{pack:0,med:1,large:0},valid:true,msg:'',dur:300,ev:{},booked:{},last:null,paid:{},drop:{},pick:{}};
 function nBags(){return state.items.pack+state.items.med+state.items.large}
 function itemsStr(c){return ITEMS.filter(function(i){return c[i.k]>0}).map(function(i){return c[i.k]+' '+T(c[i.k]===1?i.one:i.many)}).join(', ')}
@@ -2749,7 +2755,7 @@ var dd=$('#dd'),pd=$('#pd'),dtSel=$('#dt'),ptSel=$('#pt');
 (function times(){var h='';for(var m=0;m<1440;m+=15)h+='<option value="'+tStr(m)+'">'+tStr(m)+'</option>';dtSel.innerHTML=h;ptSel.innerHTML=h})();
 function itemsUI(){
   $('#items').innerHTML=ITEMS.map(function(i){
-    return '<div class="item"><div class="iname">'+T(i.name)+'<span>'+tp('{0} up to 3 h',fmt.format(i.price.std))+'</span></div>'+
+    return '<div class="item"><div class="iname"><div class="bname">'+bagIcon(i.k)+'<b>'+T(i.name)+'</b></div><span>'+tp('{0} up to 3 h',fmt.format(i.price.std))+'</span></div>'+
       '<div class="stepper" role="group" aria-label="'+esc(T(i.many))+'"><button type="button" data-k="'+i.k+'" data-d="-1" aria-label="'+esc(tp('One {0} fewer',T(i.one)))+'">&minus;</button><output id="o-'+i.k+'" aria-live="polite">'+state.items[i.k]+'</output><button type="button" data-k="'+i.k+'" data-d="1" aria-label="'+esc(tp('One {0} more',T(i.one)))+'">+</button></div></div>';
   }).join('');
 }
@@ -3103,12 +3109,6 @@ $('#items').addEventListener('click',function(e){
 });
 $('#search').addEventListener('submit',function(e){e.preventDefault()});
 
-var BAGICON={
- pack:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6V5a3 3 0 0 1 6 0v1"/><rect x="5" y="6" width="14" height="15" rx="4.5"/><rect x="8.5" y="13" width="7" height="5" rx="1.5"/><path d="M8.5 10h7"/></svg>',
- med:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6.5V3.5h4v3"/><rect x="6.5" y="6.5" width="11" height="13" rx="2.5"/><path d="M10.5 10v6M13.5 10v6"/><circle cx="9" cy="21.5" r=".6"/><circle cx="15" cy="21.5" r=".6"/></svg>',
- large:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5.5V3h7v2.5"/><rect x="3" y="5.5" width="18" height="14.5" rx="3"/><path d="M8.5 9v7.5M15.5 9v7.5"/><circle cx="7.5" cy="22" r=".6"/><circle cx="16.5" cy="22" r=".6"/></svg>'
-};
-function bagIcon(k){return '<span class="bi">'+(BAGICON[k]||'')+'</span>'}
 function renderTiers(){
   var t=state.valid?tierOf():null;
   function cls(x){return t&&t.k===x.k?' class="on"':''}
