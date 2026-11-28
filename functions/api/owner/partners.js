@@ -1,4 +1,5 @@
 import { cleanHours } from '../../_shared/hours.js';
+import { nowInVarna } from '../../_shared/pricing.js';
 import { db, eq } from '../../_shared/db.js';
 import { distMeters, geocode, inVarna, parseMapsPin, publicPin } from '../../_shared/geocode.js';
 import { sendMail, tpl } from '../../_shared/mail.js';
@@ -17,7 +18,13 @@ export const onRequestGet = handler(async ({ request, env }) => {
   const qp = (c) => db.select(env, 'partners', { select: c, order: 'created_at.desc', limit: 300 });
   const partners = await qp(`${cols},radius,circle_lat,circle_lng`).catch(() => qp(`${cols},radius`)).catch(() => qp(cols)); // new columns may not exist yet
   const applications = await db.select(env, 'partner_applications', { filters: { status: eq('pending') }, order: 'created_at.desc', limit: 100 });
-  return json({ ok: true, partners, applications });
+  // Bags in the places right now (stored) and bags booked for today, per partner.
+  const today = nowInVarna().date, usage = {};
+  const u = (id) => (usage[id] ||= { stored: 0, today: 0 });
+  const n = (r) => r.n_pack + r.n_med + r.n_large, bcols = 'partner_id,n_pack,n_med,n_large';
+  for (const r of await db.select(env, 'bookings', { filters: { status: eq('stored') }, select: bcols, limit: 5000 })) u(r.partner_id).stored += n(r);
+  for (const r of await db.select(env, 'bookings', { filters: { status: 'in.(booked,stored)', drop_date: eq(today) }, select: bcols, limit: 5000 })) u(r.partner_id).today += n(r);
+  return json({ ok: true, partners, applications, usage });
 });
 
 // Owner only. POST: add a partner (after a visit, or approving an application) or switch one on or off.

@@ -458,6 +458,7 @@ tables.partners.push({ id: 'old', name: 'Closed', email: 'old@example.com', acti
   j = await (await get(oSummary, owner)).json();
   const st = j.stats.find((x) => x.partner === 'aurora' && x.month === last.slice(0, 7));
   assert.equal(st.bags, 3); assert.equal(st.revCents, 1500); ok('owner sees bags and customer payments per partner and month; refused bookings do not count');
+  { mk('CO-USE01', { status: 'stored', n_pack: 2, n_med: 1, n_large: 0 }); mk('CO-USE02', { status: 'booked', n_pack: 1, n_med: 0, n_large: 0 }); const pj = await (await get(oPartners, owner)).json(); const ua = pj.usage.aurora; assert.equal(ua.stored, 3); assert.equal(ua.today, 4); ok('owner partner list reports bags stored now and booked today per partner'); }
   assert.equal((await post(oPayout, { partner: 'aurora', month }, owner)).status, 400); ok('the running month cannot be paid out');
   assert.equal((await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, aurora)).status, 401);
   r = await (await post(oPayout, { partner: 'aurora', month: last.slice(0, 7) }, owner)).json();
