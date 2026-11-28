@@ -137,3 +137,4 @@ alter default privileges in schema public grant all on sequences to service_role
 -- Added later: company ID (ЕИК) on partner applications
 alter table partner_applications add column if not exists eik text;
 alter table partner_applications add column if not exists reg_address text, add column if not exists rep_name text, add column if not exists rep_position text, add column if not exists vat text;
+alter table partner_applications add column if not exists bfrom text, add column if not exists bto text;
